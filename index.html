@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Weekendliste – app</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+
+<body>
+  <div class="screen-only">
+    <header class="top">
+      <div>
+        <h1>Weekendliste</h1>
+        <p class="small">Single-file-ish (ingen backend). Importér CSV eller brug demo. Generér forslag → Print.</p>
+      </div>
+
+      <div class="row">
+        <button class="primary" id="btnGenerate" title="Generér forslag til opgaver og rengøring ud fra nuværende markeringer">Generér forslag</button>
+        <button id="btnShuffle" title="Nye fiktive demo-data">Ryst posen</button>
+        <button id="btnPrint" title="Print (A4) med faste sider">Print</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Import</h2>
+      <div class="row">
+        <input id="csvFile" type="file" accept=".csv,text/csv" />
+        <button id="btnLoadCsv">Indlæs CSV</button>
+        <button id="btnUseDemo" title="Skift tilbage til fiktive demo-data">Brug demo-data</button>
+        <span class="pill" id="seedPill"></span>
+        <span class="small" id="status"></span>
+      </div>
+      <p class="small" id="csvInfo"></p>
+
+      <details class="small">
+        <summary>Hvilke kolonner forsøger appen at finde?</summary>
+        <ul class="list">
+          <li>Fornavn, Efternavn, Værelse, Gang</li>
+          <li>Kontaktlærer, Kontaktlærer 2</li>
+          <li>Evt. kodefelter: “Kontaktlærer kode/forkortelse” (og tilsvarende for 2)</li>
+        </ul>
+      </details>
+    </section>
+
+    <section class="grid cols-2 section">
+      <div class="card">
+        <h2>Regler (prototype v0.1)</h2>
+        <ul class="list small">
+          <li><b>Tjanser</b>: Max 1 pr. elev pr. weekend (køkkenelever udelukkes).</li>
+          <li><b>Knap-mode</b>: Hvis der mangler hænder, får nogle elever flere tjanser (forsøger “tung+let”).</li>
+          <li><b>Rengøring</b>: Lørdag + søndag. Prøver at lave <b>stabil</b> plan (samme elev samme område begge dage). En-dags-elever bliver på egen gang.</li>
+          <li>Alt kan justeres manuelt senere – her fokuserer vi på print.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Weekendmarkering</h2>
+        <p class="small">Her kan du justere tilstedeværelse, “hjem lør 12” og køkkenelever før du genererer forslag.</p>
+        <div class="table-wrap">
+          <table id="screenTable">
+            <thead>
+              <tr>
+                <th>Navn</th>
+                <th>Gang</th>
+                <th>Værelse</th>
+                <th class="center">Fre</th>
+                <th class="center">Lør</th>
+                <th class="center">Søn</th>
+                <th class="center">Hjem lør 12</th>
+                <th class="center">Køkkenelev</th>
+                <th>K-grp</th>
+              </tr>
+            </thead>
+            <tbody id="screenTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="print-only">
+    <div class="page" id="page1"></div>
+    <div class="page" id="page2"></div>
+    <div class="page" id="page3"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
