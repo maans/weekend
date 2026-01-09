@@ -21,7 +21,6 @@ th { background:var(--bg); text-align:left; position: sticky; top:0; z-index:1; 
 .center { text-align:center; }
 .print-only { display:none; }
 .screen-only { display:block; }
-
 @page { size:A4; margin:10mm; }
 @media print {
   body { margin:0; }
