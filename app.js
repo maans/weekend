@@ -34,6 +34,7 @@
       const leaveSat12 = out.length < 2 ? true : (rand() < 0.04);
       out.push({
         id: `d${String(out.length+1).padStart(3,"0")}`,
+        unic: "",
         name,
         gang: pick(GANGS),
         room: pick(ROOMS),
@@ -47,7 +48,7 @@
     return shuffle(out);
   }
 
-  // CSV helpers
+  // ---- CSV helpers
   function detectDelimiter(text) {
     const sample = text.split(/\r?\n/).slice(0, 10).join("\n");
     const commas = (sample.match(/,/g) || []).length;
@@ -94,24 +95,20 @@
     return "";
   }
   function norm(s){ return String(s??"").trim().replace(/\s+/g," "); }
+  function cleanNameKey(s){
+    return norm(s).toLowerCase().replace(/[.\u00b7·]/g,"").replace(/\s+/g," ").trim();
+  }
   function initialsFromName(name){
     const parts = norm(name).split(" ").filter(Boolean);
     if(!parts.length) return "";
     if(parts.length===1) return parts[0].slice(0,2).toUpperCase();
     return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
   }
-  function aliasCode(code, role){
-    const raw = norm(code).toUpperCase();
-    if (!raw) return "";
-    // If someone has typed e.g. "JN/MP", normalize parts.
-    if (raw.includes("/")){
-      const parts = raw.split("/").map(p=>norm(p).toUpperCase());
-      const a = aliasCode(parts[0]||"", "k1");
-      const b = aliasCode(parts[1]||"", "k2");
-      if (a && b) return `${a}/${b}`;
-      return a || b || "";
-    }
-    let c = raw;
+
+  // ---- Code aliasing (forced)
+  function normalizeTeacherCode(code, role){
+    let c = norm(code).toUpperCase();
+    if (!c) return "";
     if (c === "AP") c = "AB";
     if (c === "JN") c = "JH";
     if (c === "MP" && role === "k1") c = "MTP";
@@ -119,85 +116,142 @@
     return c;
   }
 
-  function teacherCode(name, override, role, nameToCode){
-    // Priority:
-    // 1) Per-row override (K1-init/K2-init)
-    // 2) Learned override from other rows (same teacher name)
-    // 3) Derived initials from name
-    let o = norm(override).toUpperCase();
-    if (!o){
-      const key = norm(name).toLowerCase().replace(/[.\u00B7]/g,' ').replace(/\s+/g,' ').trim();
-      const hit = nameToCode && nameToCode[key] && nameToCode[key][role];
-      if (hit) o = norm(hit).toUpperCase();
+  // Learnt overrides: teacherName -> code for role
+  function buildTeacherOverrideMaps(dataRows, headerIndex){
+    const k1 = new Map();
+    const k2 = new Map();
+
+    for (const row of dataRows){
+      const k1Name = getCell(row, headerIndex, "Relationer-Kontaktlærer-Navn", "Kontaktlærer");
+      const k2Name = getCell(row, headerIndex, "Relationer-Anden kontaktlærer-Navn", "Kontaktlærer 2");
+      const k1Code = getCell(row, headerIndex, "K1-init");
+      const k2Code = getCell(row, headerIndex, "K2-init");
+
+      const k1Key = cleanNameKey(k1Name);
+      const k2Key = cleanNameKey(k2Name);
+
+      if (k1Key && norm(k1Code)) k1.set(k1Key, normalizeTeacherCode(k1Code, "k1"));
+      if (k2Key && norm(k2Code)) k2.set(k2Key, normalizeTeacherCode(k2Code, "k2"));
     }
-    const base = o || initialsFromName(name);
-    return aliasCode(base, role);
+    return { k1, k2 };
   }
 
-  function makeKGrpFromRow(row, idx, nameToCode){
+  function teacherCode(name, override, role, overrideMap){
+    const o = norm(override).toUpperCase();
+    if (o) return normalizeTeacherCode(o, role);
 
+    const key = cleanNameKey(name);
+    if (key && overrideMap && overrideMap.has(key)) return normalizeTeacherCode(overrideMap.get(key), role);
+
+    return normalizeTeacherCode(initialsFromName(name), role);
+  }
+
+  function makeKGrpFromRow(row, idx, maps){
     const k1Name = getCell(row, idx, "Relationer-Kontaktlærer-Navn", "Kontaktlærer");
     const k2Name = getCell(row, idx, "Relationer-Anden kontaktlærer-Navn", "Kontaktlærer 2");
+
     const k1Code = getCell(row, idx, "K1-init");
     const k2Code = getCell(row, idx, "K2-init");
-    const c1raw = teacherCode(k1Name, k1Code, "k1", nameToCode);
-    const c2raw = teacherCode(k2Name, k2Code, "k2", nameToCode);
-    const c1 = c1raw ? aliasCode(c1raw, "k1") : "";
-    const c2 = c2raw ? aliasCode(c2raw, "k2") : "";
+
+    const c1 = teacherCode(k1Name, k1Code, "k1", maps?.k1);
+    const c2 = teacherCode(k2Name, k2Code, "k2", maps?.k2);
+
     if(c1 && c2) return `${c1}/${c2}`;
     return c1 || c2 || "";
   }
-  function mapCsvRowToStudent(row, idx, n, nameToCode){
+
+  // ---- Weekend parsing from "Hvor er du i weekenden? (6725)"
+  function normWeekendText(s){
+    return norm(s)
+      .toLowerCase()
+      .replaceAll("æ","ae").replaceAll("ø","oe").replaceAll("å","aa")
+      .replace(/[()]/g," ")
+      .replace(/[.,;:!?]/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+  }
+
+  function parseWeekendAvailability(text){
+    const t = normWeekendText(text);
+    if (!t) return null;
+
+    const hasFre = /\bfre(dag)?\b/.test(t);
+    const hasSat = /\bloer(dag)?\b|\blor(dag)?\b/.test(t);
+    const hasSun = /\bsoen(dag)?\b|\bson(dag)?\b/.test(t);
+
+    // explicit home sat 12
+    const homeSat12 =
+      (/\bhjem\b/.test(t) && (/\b12\b/.test(t) || /\bkl\b/.test(t)) && (/\bloer\b|\blor\b/.test(t))) ||
+      /\bhjem loer 12\b/.test(t) || /\bhjem lor 12\b/.test(t) ||
+      /\btager hjem\b.*\bloer\b.*\b12\b/.test(t);
+
+    if (homeSat12) {
+      return { fredag:true, lørdag:true, søndag:false, leaveSat12:true };
+    }
+
+    // “hele weekenden”
+    if (t.includes("hele weekenden") || t.includes("alle dage") || t.includes("paa hu hele weekenden") || t.includes("pa hu hele weekenden")) {
+      return { fredag:true, lørdag:true, søndag:true, leaveSat12:false };
+    }
+
+    // Only-day patterns
+    if (t.includes("kun") || t.includes("bare")) {
+      if (hasSat && !hasFre && !hasSun) return { fredag:false, lørdag:true, søndag:false, leaveSat12:false };
+      if (hasSun && !hasFre && !hasSat) return { fredag:false, lørdag:false, søndag:true, leaveSat12:false };
+      if (hasFre && !hasSat && !hasSun) return { fredag:true, lørdag:false, søndag:false, leaveSat12:false };
+    }
+
+    // combos
+    if (hasFre || hasSat || hasSun) {
+      return { fredag:!!hasFre, lørdag:!!hasSat, søndag:!!hasSun, leaveSat12:false };
+    }
+
+    return null;
+  }
+
+  function mapCsvRowToStudent(row, idx, n, maps){
     const fornavn = norm(getCell(row, idx, "Fornavn"));
     const efternavn = norm(getCell(row, idx, "Efternavn"));
     const room = norm(getCell(row, idx, "Værelse", "Vaerelse"));
     const gang = norm(getCell(row, idx, "StudentHouse", "Gang"));
+    const unic = norm(getCell(row, idx, "Uni-C brugernavn", "Uni-C", "Unic", "UniC"));
+
     const navnFallback = norm(getCell(row, idx, "Navn"));
     const name = ([fornavn, efternavn].filter(Boolean).join(" ").trim()) || navnFallback || `Ukendt elev ${n+1}`;
+
+    const k_grp = makeKGrpFromRow(row, idx, maps);
+
+    const weekendText = getCell(row, idx, "Hvor er du i weekenden? (6725)", "Hvor er du i weekenden?");
+    const w = parseWeekendAvailability(weekendText);
+
+    const present = w ? { fredag:w.fredag, lørdag:w.lørdag, søndag:w.søndag } : { fredag:true, lørdag:true, søndag:true };
+    const leaveSat12 = !!(w && w.leaveSat12);
+
     return {
       id: `c${String(n+1).padStart(4,"0")}`,
+      unic,
       name,
       gang: gang || "(ukendt)",
       room: room || "",
-      k_grp: makeKGrpFromRow(row, idx, nameToCode),
-      present: { fredag:true, lørdag:true, søndag:true },
-      leaveSat12: false,
+      k_grp,
+      present,
+      leaveSat12,
       roles: { kitchenCrew:false },
       overrides: { maxNonCleaningTasksWeekend: 1, excludeNonCleaningTasks:false }
     };
   }
+
   function studentsFromCsvText(text){
     const {headers, data, delim} = parseCsv(text);
     if(!headers.length) throw new Error("CSV ser tom ud.");
     const idx = buildHeaderIndex(headers);
 
-    // Learn teacher-code overrides from ANY row where K1-init / K2-init is set,
-    // and apply consistently across all students.
-    const nameToCode = {};
-    for (const row of data){
-      const k1Name = getCell(row, idx, "Relationer-Kontaktlærer-Navn", "Kontaktlærer");
-      const k2Name = getCell(row, idx, "Relationer-Anden kontaktlærer-Navn", "Kontaktlærer 2");
-      const k1Code = getCell(row, idx, "K1-init");
-      const k2Code = getCell(row, idx, "K2-init");
-
-      const k1Key = norm(k1Name).toLowerCase().replace(/[.\u00B7]/g,' ').replace(/\s+/g,' ').trim();
-      const k2Key = norm(k2Name).toLowerCase().replace(/[.\u00B7]/g,' ').replace(/\s+/g,' ').trim();
-
-      if (k1Key){
-        nameToCode[k1Key] = nameToCode[k1Key] || {};
-        if (norm(k1Code)) nameToCode[k1Key].k1 = aliasCode(norm(k1Code).toUpperCase(), 'k1');
-      }
-      if (k2Key){
-        nameToCode[k2Key] = nameToCode[k2Key] || {};
-        if (norm(k2Code)) nameToCode[k2Key].k2 = aliasCode(norm(k2Code).toUpperCase(), 'k2');
-      }
-    }
-
-    const students = data.map((r,i)=>mapCsvRowToStudent(r, idx, i, nameToCode));
+    const maps = buildTeacherOverrideMaps(data, idx);
+    const students = data.map((r,i)=>mapCsvRowToStudent(r, idx, i, maps));
     return {students, headers, delim};
   }
 
-  // Minimal assignment + cleaning stubs (print-friendly)
+  // ---- Assignments (simple max 1/weekend; excludes kitchenCrew)
   const taskPlan = {
     fredag: { aftensmad_før:3, aftensmad_efter:3, aftenservering:2 },
     lørdag: { mokost_før:2, mokost_efter:2, eftermiddag:2, aftensmad_før:3, aftensmad_efter:3, aftenservering:1 },
@@ -227,8 +281,7 @@
       let i=0;
       for(const s of list){
         if(i>=n) break;
-        // max 1/weekend (simple): skip if already has any
-        if(load.get(s.id) >= 1) continue;
+        if(load.get(s.id) >= 1) continue; // max 1/weekend
         A.tasks[day][key].push(s.name);
         load.set(s.id, load.get(s.id)+1);
         i++;
@@ -252,6 +305,7 @@
     const both = students.filter(s=>s.present.lørdag && s.present.søndag);
 
     const usedSat = new Set(), usedSun = new Set();
+
     // stable common areas from 'both'
     const bothSorted = both.slice().sort((a,b)=>a.name.localeCompare(b.name,"da"));
     let bi=0;
@@ -261,7 +315,8 @@
       plan[area].sat=[s.name]; plan[area].sun=[s.name];
       usedSat.add(s.id); usedSun.add(s.id);
     }
-    // halls: up to 2 per day per gang, prefer same gang members
+
+    // halls: up to 2 per day per gang
     function fillHalls(dayKey, list, used){
       const extras=[];
       for(const g of GANGS){
@@ -284,7 +339,7 @@
     return {rows, plan, meta:{warnings:[], bothCount:both.length, satOnlyCount:sat.length-both.length, sunOnlyCount:sun.length-both.length}};
   }
 
-  // Rendering helpers
+  // ---- Rendering helpers
   function esc(s){ return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
   function fmt(list){ return (!list || !list.length) ? "—" : list.join(", "); }
   function taskLabel(k){
@@ -330,7 +385,7 @@
           if(f==="lør") s.present.lørdag = cb.checked;
           if(f==="søn") s.present.søndag = cb.checked;
           if(f==="hjem12"){ s.leaveSat12 = cb.checked; if(cb.checked) s.present.søndag=false; }
-          if(f==="kitchen"){ s.roles.kitchenCrew = cb.checked; }
+          if(f==="kitchen"){ s.roles.kitchenCrew = cb.checked; s.overrides.excludeNonCleaningTasks = cb.checked; }
           if(f==="søn" && cb.checked) s.leaveSat12=false;
           updateStatus();
         });
@@ -347,7 +402,7 @@
       <h2>Weekend – køkkenoverblik</h2>
       <p class="small">Udskrift: ${esc(new Date().toLocaleString("da-DK"))}</p>
       <p class="small"><b>Antal på HU:</b> Fre ${count("fredag")} · Lør ${count("lørdag")} · Søn ${count("søndag")} · <b>Hjem lør 12:</b> ${home12}</p>
-      <p class="small"><b>Køkkenelever:</b> ${esc(kitchenCrew.join(", ") || "—")}</p>
+      <p class="small"><b>Køkkenelever (udeladt fra tjanser):</b> ${esc(kitchenCrew.join(", ") || "—")}</p>
       <div class="grid" style="grid-template-columns:repeat(3, minmax(240px, 1fr)); gap:10px;">
         ${dayCard("Fredag", A.tasks.fredag)}
         ${dayCard("Lørdag", A.tasks.lørdag)}
@@ -398,6 +453,7 @@
 
     document.getElementById("page3").innerHTML = `
       <h2>Rengøring (stabil plan)</h2>
+      <p class="small"><b>Alle elever deltager i rengøring (køkkenelever også).</b> En-dags-elever bliver på egen gang, så vidt muligt.</p>
       <p class="small">Begge dage: ${cleaning.meta.bothCount} · Kun lørdag: ${cleaning.meta.satOnlyCount} · Kun søndag: ${cleaning.meta.sunOnlyCount}</p>
       <table>
         <thead>
@@ -422,18 +478,62 @@
     document.getElementById("status").textContent = `Elever: ${students.length} · Fre ${count("fredag")} Lør ${count("lørdag")} Søn ${count("søndag")} · Hjem lør 12: ${home12} · Køkkenelever: ${kitchenCrew}`;
   }
 
-  // UI wiring
+  // ---- Bulk kitchen helpers
+  function splitTokens(s){
+    return String(s??"")
+      .split(/[\n,]+/g)
+      .map(x => x.trim())
+      .filter(Boolean);
+  }
+  function normalizeToken(s){
+    return norm(s).toLowerCase().replaceAll("æ","ae").replaceAll("ø","oe").replaceAll("å","aa");
+  }
+  function applyKitchenBulk(tokens){
+    if (!tokens.length) return {marked:0, notFound:[]};
+
+    const tokSet = new Set(tokens.map(normalizeToken));
+    let marked = 0;
+    const notFound = [];
+
+    for (const tok of tokSet){
+      const match = students.find(s =>
+        (s.unic && normalizeToken(s.unic) === tok) ||
+        normalizeToken(s.name) === tok
+      );
+      if (match){
+        if (!match.roles.kitchenCrew) marked++;
+        match.roles.kitchenCrew = true;
+        match.overrides.excludeNonCleaningTasks = true;
+      } else {
+        notFound.push(tok);
+      }
+    }
+    return {marked, notFound};
+  }
+
+  function clearKitchen(){
+    students.forEach(s => {
+      s.roles.kitchenCrew = false;
+      s.overrides.excludeNonCleaningTasks = false;
+    });
+  }
+
+  // ---- UI wiring
   const csvFileEl = document.getElementById("csvFile");
   const csvInfoEl = document.getElementById("csvInfo");
+  const kitchenBulkEl = document.getElementById("kitchenBulk");
+
   let students = makeFakeStudents(34);
 
   function regenerate(){
-    // normalize
     students.forEach(s=>{
       if(!s.present) s.present={fredag:true,lørdag:true,søndag:true};
       if(!s.roles) s.roles={kitchenCrew:false};
+      if(!s.overrides) s.overrides={maxNonCleaningTasksWeekend:1, excludeNonCleaningTasks:false};
+
       if(s.leaveSat12) s.present.søndag=false;
       if(s.present.søndag) s.leaveSat12=false;
+      s.overrides.excludeNonCleaningTasks = !!s.roles.kitchenCrew;
     });
 
     const A = assignSimple(students);
@@ -477,6 +577,19 @@
       console.error(e);
       csvInfoEl.textContent = "Kunne ikke indlæse CSV. Tjek format/kolonnenavne.";
     }
+  });
+
+  document.getElementById("btnKitchenBulk").addEventListener("click", ()=>{
+    const tokens = splitTokens(kitchenBulkEl.value);
+    const res = applyKitchenBulk(tokens);
+    csvInfoEl.textContent = `Køkkenelever markeret: +${res.marked}. Ikke fundet: ${res.notFound.length ? res.notFound.join(", ") : "—"}`;
+    regenerate();
+  });
+
+  document.getElementById("btnKitchenClear").addEventListener("click", ()=>{
+    clearKitchen();
+    csvInfoEl.textContent = "Alle køkkenelever ryddet.";
+    regenerate();
   });
 
   regenerate();
