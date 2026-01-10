@@ -100,21 +100,54 @@
     if(parts.length===1) return parts[0].slice(0,2).toUpperCase();
     return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
   }
-  function teacherCode(name, override){
-    const o = norm(override).toUpperCase();
-    return o || initialsFromName(name);
+  function aliasCode(code, role){
+    const raw = norm(code).toUpperCase();
+    if (!raw) return "";
+    // If someone has typed e.g. "JN/MP", normalize parts.
+    if (raw.includes("/")){
+      const parts = raw.split("/").map(p=>norm(p).toUpperCase());
+      const a = aliasCode(parts[0]||"", "k1");
+      const b = aliasCode(parts[1]||"", "k2");
+      if (a && b) return `${a}/${b}`;
+      return a || b || "";
+    }
+    let c = raw;
+    if (c === "AP") c = "AB";
+    if (c === "JN") c = "JH";
+    if (c === "MP" && role === "k1") c = "MTP";
+    if (c === "MP" && role === "k2") c = "MV";
+    return c;
   }
-  function makeKGrpFromRow(row, idx){
+
+  function teacherCode(name, override, role, nameToCode){
+    // Priority:
+    // 1) Per-row override (K1-init/K2-init)
+    // 2) Learned override from other rows (same teacher name)
+    // 3) Derived initials from name
+    let o = norm(override).toUpperCase();
+    if (!o){
+      const key = norm(name).toLowerCase().replace(/[.\u00B7]/g,' ').replace(/\s+/g,' ').trim();
+      const hit = nameToCode && nameToCode[key] && nameToCode[key][role];
+      if (hit) o = norm(hit).toUpperCase();
+    }
+    const base = o || initialsFromName(name);
+    return aliasCode(base, role);
+  }
+
+  function makeKGrpFromRow(row, idx, nameToCode){
+
     const k1Name = getCell(row, idx, "Relationer-Kontaktlærer-Navn", "Kontaktlærer");
     const k2Name = getCell(row, idx, "Relationer-Anden kontaktlærer-Navn", "Kontaktlærer 2");
     const k1Code = getCell(row, idx, "K1-init");
     const k2Code = getCell(row, idx, "K2-init");
-    const c1 = teacherCode(k1Name, k1Code);
-    const c2 = teacherCode(k2Name, k2Code);
+    const c1raw = teacherCode(k1Name, k1Code, "k1", nameToCode);
+    const c2raw = teacherCode(k2Name, k2Code, "k2", nameToCode);
+    const c1 = c1raw ? aliasCode(c1raw, "k1") : "";
+    const c2 = c2raw ? aliasCode(c2raw, "k2") : "";
     if(c1 && c2) return `${c1}/${c2}`;
     return c1 || c2 || "";
   }
-  function mapCsvRowToStudent(row, idx, n){
+  function mapCsvRowToStudent(row, idx, n, nameToCode){
     const fornavn = norm(getCell(row, idx, "Fornavn"));
     const efternavn = norm(getCell(row, idx, "Efternavn"));
     const room = norm(getCell(row, idx, "Værelse", "Vaerelse"));
@@ -126,7 +159,7 @@
       name,
       gang: gang || "(ukendt)",
       room: room || "",
-      k_grp: makeKGrpFromRow(row, idx),
+      k_grp: makeKGrpFromRow(row, idx, nameToCode),
       present: { fredag:true, lørdag:true, søndag:true },
       leaveSat12: false,
       roles: { kitchenCrew:false },
@@ -137,7 +170,30 @@
     const {headers, data, delim} = parseCsv(text);
     if(!headers.length) throw new Error("CSV ser tom ud.");
     const idx = buildHeaderIndex(headers);
-    const students = data.map((r,i)=>mapCsvRowToStudent(r, idx, i));
+
+    // Learn teacher-code overrides from ANY row where K1-init / K2-init is set,
+    // and apply consistently across all students.
+    const nameToCode = {};
+    for (const row of data){
+      const k1Name = getCell(row, idx, "Relationer-Kontaktlærer-Navn", "Kontaktlærer");
+      const k2Name = getCell(row, idx, "Relationer-Anden kontaktlærer-Navn", "Kontaktlærer 2");
+      const k1Code = getCell(row, idx, "K1-init");
+      const k2Code = getCell(row, idx, "K2-init");
+
+      const k1Key = norm(k1Name).toLowerCase().replace(/[.\u00B7]/g,' ').replace(/\s+/g,' ').trim();
+      const k2Key = norm(k2Name).toLowerCase().replace(/[.\u00B7]/g,' ').replace(/\s+/g,' ').trim();
+
+      if (k1Key){
+        nameToCode[k1Key] = nameToCode[k1Key] || {};
+        if (norm(k1Code)) nameToCode[k1Key].k1 = aliasCode(norm(k1Code).toUpperCase(), 'k1');
+      }
+      if (k2Key){
+        nameToCode[k2Key] = nameToCode[k2Key] || {};
+        if (norm(k2Code)) nameToCode[k2Key].k2 = aliasCode(norm(k2Code).toUpperCase(), 'k2');
+      }
+    }
+
+    const students = data.map((r,i)=>mapCsvRowToStudent(r, idx, i, nameToCode));
     return {students, headers, delim};
   }
 
