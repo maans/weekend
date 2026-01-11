@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
@@ -11,12 +10,11 @@ import * as XLSX from 'xlsx';
 
 // --- HJÆLPERE ---
 const getWeekNumber = (d: Date) => {
-  const date = new Date(d.getTime());
-  date.setHours(0, 0, 0, 0);
-  // Torsdag i samme uge bestemmer ugenummeret (ISO 8601)
-  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
-  const week1 = new Date(date.getFullYear(), 0, 4);
-  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return weekNo;
 };
 
 const getActualDayName = () => {
@@ -32,7 +30,7 @@ const cleanValue = (val: any) => {
 };
 
 // --- KONFIGURATION ---
-const STORAGE_KEY = 'weekend_master_v8_stable';
+const STORAGE_KEY = 'weekend_master_v7_final';
 const WISE_COLORS = ['bg-[#FFB300]', 'bg-[#00BFA5]', 'bg-[#D81B60]', 'bg-[#1E88E5]', 'bg-[#5E35B1]'];
 
 const CLEANING_CONFIG = [
@@ -209,8 +207,7 @@ const App = () => {
     const eligible = currentSts.filter(s => s.isPresent && !s.isKitchenDuty);
     let pool = [...eligible].sort(() => Math.random() - 0.5);
     let used = new Set();
-    // Fix: Explicitly cast 'v' to string[] to avoid TS unknown error
-    Object.entries(taskAssignments).forEach(([k, v]) => { if(lockedSlots[k]) (v as string[]).forEach(id => used.add(id)); });
+    Object.entries(taskAssignments).forEach(([k, v]) => { if(lockedSlots[k]) v.forEach(id => used.add(id)); });
 
     TASK_CONFIG.forEach(t => {
       if (lockedSlots[t.id]) return;
@@ -245,9 +242,6 @@ const App = () => {
         const parsed = processExcelData(data);
         if (parsed.length > 0) {
           setStudents(parsed);
-          // Rens gamle tildelinger for at undgå "??"
-          setTaskAssignments({});
-          setCleaningAssignments({});
           setActiveTab('students');
           setTimeout(() => performAutoGeneration(parsed), 100);
         }
@@ -262,10 +256,8 @@ const App = () => {
     const s = students.find(x => x.id === sid);
     if (!s) return null;
     if (s.isKitchenDuty) return "Køkken";
-    // Fix: Explicitly cast 'ids' to string[] to avoid TS unknown error
-    const inTask = Object.values(taskAssignments).some(ids => (ids as string[]).includes(sid));
-    // Fix: Explicitly cast 'ids' to string[] to avoid TS unknown error
-    const inClean = Object.values(cleaningAssignments).some(ids => (ids as string[]).includes(sid));
+    const inTask = Object.values(taskAssignments).some(ids => ids.includes(sid));
+    const inClean = Object.values(cleaningAssignments).some(ids => ids.includes(sid));
     if (inTask && inClean) return "T+R";
     if (inTask) return "Tjans";
     if (inClean) return "Rengør";
@@ -332,12 +324,12 @@ const App = () => {
                 {students.length > 0 && (
                   <div className="bg-[#1E88E5]/10 p-8 rounded-[2.5rem] border border-[#1E88E5]/30 space-y-6 text-center">
                     <PieChart className="w-8 h-8 mx-auto text-[#1E88E5]"/>
-                    <div className="grid grid-cols-2 gap-4 text-center">
-                       <div className="bg-white/5 p-5 rounded-2xl">
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="bg-white/5 p-5 rounded-2xl text-center">
                           <p className="text-[10px] font-black uppercase opacity-40 mb-1">Tilmeldt</p>
                           <p className="text-3xl font-black">{stats.total}</p>
                        </div>
-                       <div className="bg-white/5 p-5 rounded-2xl">
+                       <div className="bg-white/5 p-5 rounded-2xl text-center">
                           <p className="text-[10px] font-black uppercase opacity-40 mb-1">Køkken</p>
                           <p className="text-3xl font-black text-[#D81B60]">{stats.kitchen}</p>
                        </div>
@@ -355,30 +347,24 @@ const App = () => {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20"/>
                     <input type="text" placeholder="Søg..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-white/5 border border-white/10 p-5 pl-12 rounded-2xl outline-none focus:border-[#FFB300] transition-all"/>
                   </div>
-                  <button onClick={() => setShowAllStudents(!showAllStudents)} className={`px-5 rounded-2xl flex items-center gap-2 font-black uppercase text-[9px] border transition-all ${showAllStudents ? 'bg-[#00BFA5] text-black border-[#00BFA5]' : 'bg-white/5 border-white/10 text-white/40'}`}>
-                    <Filter className="w-4 h-4"/> {showAllStudents ? 'Vis Alle' : 'Tilmeldte'}
+                  <button onClick={() => setShowAllStudents(!showAllStudents)} className={`px-6 rounded-2xl flex items-center gap-2 font-black uppercase text-[10px] border transition-all ${showAllStudents ? 'bg-[#00BFA5] text-black border-[#00BFA5]' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                    <Filter className="w-4 h-4"/> {showAllStudents ? 'Alle' : 'Tilmeldte'}
                   </button>
                 </div>
 
                 {filtered.map((s, i) => (
-                  <div key={s.id} className="relative overflow-hidden rounded-[2rem] mb-2 wise-card">
-                    <div className={`${WISE_COLORS[i % 5]} p-5 text-black shadow-lg flex items-center justify-between gap-3 transition-transform duration-150 select-none ${!s.isPresent ? 'opacity-30 grayscale' : ''}`}>
+                  <div key={s.id} className="relative overflow-hidden rounded-[2.5rem] mb-3 wise-card">
+                    <div className={`${WISE_COLORS[i % 5]} p-7 text-black shadow-lg flex items-center justify-between gap-4 transition-transform duration-150 select-none ${!s.isPresent ? 'opacity-30 grayscale' : ''}`}>
                       <div className="flex-1 min-w-0" onClick={() => setStudents(p => p.map(x => x.id === s.id ? {...x, isPresent: !x.isPresent, stayType: !x.isPresent ? 'full' : 'none'} : x))}>
-                          <p className="text-lg font-black leading-tight break-words">{s.firstName} {s.lastName}</p>
-                          <span className="text-[10px] font-black uppercase opacity-60 tracking-[0.1em]">{s.house} • {s.room}</span>
+                          <p className="text-xl font-black leading-tight truncate">{s.firstName} {s.lastName}</p>
+                          <span className="text-[9px] font-black uppercase opacity-60 tracking-[0.15em]">{s.house} • {s.room}</span>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); setStudents(p => p.map(x => x.id === s.id ? {...x, isKitchenDuty: !x.isKitchenDuty} : x)) }} className={`w-24 py-3 rounded-xl text-[9px] font-black uppercase border tracking-[0.1em] transition-all shrink-0 ${s.isKitchenDuty ? 'bg-black text-white border-black' : 'bg-black/10 border-transparent text-black'}`}>
-                        {s.isKitchenDuty ? 'Køkken' : 'Køkken?'}
+                      <button onClick={(e) => { e.stopPropagation(); setStudents(p => p.map(x => x.id === s.id ? {...x, isKitchenDuty: !x.isKitchenDuty} : x)) }} className={`w-28 py-4 rounded-2xl text-[9px] font-black uppercase border tracking-[0.2em] transition-all shrink-0 ${s.isKitchenDuty ? 'bg-black text-white border-black' : 'bg-black/10 border-transparent text-black'}`}>
+                        {s.isKitchenDuty ? 'I Køkken' : 'Køkken?'}
                       </button>
                     </div>
                   </div>
                 ))}
-                {filtered.length === 0 && !showAllStudents && students.length > 0 && (
-                    <div className="text-center py-10 opacity-30">
-                        <p className="text-sm font-black uppercase mb-4 italic">Ingen tilmeldte elever matcher din søgning.</p>
-                        <button onClick={() => setShowAllStudents(true)} className="px-6 py-3 border border-white/20 rounded-xl text-[10px] font-black uppercase">Se alle elever (inkl. afmeldte)</button>
-                    </div>
-                )}
               </div>
             )}
 
@@ -557,8 +543,7 @@ const App = () => {
              {previewType === 'brand' && (
                 <div className="space-y-10">
                    {(() => {
-                      // Fix: Cast 'loc' as string and filter Boolean to avoid TS unknown errors
-                      const locations = Array.from(new Set(students.filter(s => s.isPresent).map(s => s.sleepingLocations[brandListDay]))).filter(Boolean) as string[];
+                      const locations = Array.from(new Set(students.filter(s => s.isPresent).map(s => s.sleepingLocations[brandListDay])));
                       const areas = Array.from(new Set(locations.map(loc => loc.includes(' - ') ? loc.split(' - ')[0] : loc))).sort();
                       
                       return areas.map((area, i) => {
@@ -725,8 +710,9 @@ const App = () => {
                  <p className="text-white/40">Velkommen til Weekend! Her er de vigtigste funktioner:</p>
                  <div className="space-y-4">
                     <div className="flex gap-4"><Hash className="text-[#FFB300]"/><p className="text-sm"><b>Weekend Nr:</b> Beregnes automatisk som den aktuelle uge.</p></div>
-                    <div className="flex gap-4"><Filter className="text-[#00BFA5]"/><p className="text-sm"><b>Gendan elever:</b> Brug "Vis Alle" filteret på elevlisten for at se afmeldte elever og bringe dem tilbage.</p></div>
+                    <div className="flex gap-4"><Filter className="text-[#00BFA5]"/><p className="text-sm"><b>Gendan elever:</b> Brug filter-knappen øverst på elevlisten for at se "Mangler/Ikke tilmeldte".</p></div>
                     <div className="flex gap-4"><Database className="text-[#FFB300]"/><p className="text-sm"><b>Backup:</b> Gem dit arbejde jævnligt med Save-ikonet i Import-fanen.</p></div>
+                    <div className="flex gap-4"><Users className="text-[#00BFA5]"/><p className="text-sm"><b>Tilmeld:</b> Klik på elevkortene i Elevlisten for at melde til/fra.</p></div>
                  </div>
               </div>
               <button onClick={() => setShowFaq(false)} className="w-full py-5 bg-white text-black rounded-2xl font-black uppercase text-xs">Forstået</button>
