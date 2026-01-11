@@ -1,100 +1,51 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="da">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Weekendliste – app</title>
-  <link rel="stylesheet" href="app.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wiselist Weekend</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; color: black !important; padding: 0; margin: 0; }
+            .page-break { page-break-after: always; height: 0; border: 0; }
+            
+            /* Sikrer at alt tekst er sort i print */
+            h1, h2, h3, h4, p, span, td, th, li {
+                color: black !important;
+            }
+            .text-red-600 { color: #dc2626 !important; } /* Bevar rød for brandlister */
+            
+            /* Sidefod til sidetal */
+            @page {
+                margin: 1cm;
+                size: A4;
+            }
+        }
+        .print-only { display: none; }
+        body { background-color: #0A0E1A; overflow-x: hidden; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "xlsx": "https://esm.sh/xlsx@0.18.5",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
 </head>
-
-<body>
-  <div class="screen-only">
-    <header class="top">
-      <div>
-        <h1>Weekendliste <span class="badge">v0.2.3</span></h1>
-        <p class="small">Single-file (ingen backend). Importér CSV eller brug demo. Generér forslag → Print.</p>
-      </div>
-
-      <div class="row">
-        <button class="primary" id="btnGenerate" title="Generér forslag til opgaver og rengøring ud fra nuværende markeringer">Generér forslag</button>
-        <button id="btnShuffle" title="Nye fiktive demo-data">Ryst posen</button>
-        <button id="btnPrint" title="Print (A4) med faste sider">Print</button>
-      </div>
-    </header>
-
-    <section class="card">
-      <h2>Import</h2>
-      <div class="row">
-        <input id="csvFile" type="file" accept=".csv,text/csv" />
-        <button id="btnLoadCsv">Indlæs CSV</button>
-        <button id="btnUseDemo" title="Skift tilbage til fiktive demo-data">Brug demo-data</button>
-        <span class="pill" id="seedPill"></span>
-        <span class="small" id="status"></span>
-      </div>
-      <p class="small" id="csvInfo"></p>
-
-      <div class="row" style="margin-top:10px;">
-        <label class="small" for="kitchenBulk" style="min-width:170px;"><b>Sæt køkkenelever</b> (navn eller Uni-C)</label>
-        <input id="kitchenBulk" class="grow" type="text" placeholder="fx: abcd1234, Ella Nielsen, ..." />
-        <button id="btnKitchenBulk">Markér</button>
-        <button id="btnKitchenClear" title="Fjern markering på alle køkkenelever">Ryd køkkenelever</button>
-      </div>
-      <p class="small">Tip: adskil med komma eller linjeskift. Match sker på Uni‑C brugernavn (hvis i CSV) ellers navn.</p>
-
-      <details class="small">
-        <summary>Hvilke kolonner bruger appen fra din CSV?</summary>
-        <ul class="list">
-          <li>Fornavn, Efternavn, Værelse</li>
-          <li>StudentHouse (→ Gang)</li>
-          <li>Uni-C brugernavn (valgfrit – bruges til køkkenelev-bulk)</li>
-          <li>Relationer-Kontaktlærer-Navn + Relationer-Anden kontaktlærer-Navn</li>
-          <li>K1-init, K2-init (valgfrit override for initialer/kode)</li>
-          <li>Hvor er du i weekenden? (6725) (valgfrit – auto-fylder Fre/Lør/Søn + Hjem lør 12 hvis teksten kan tolkes)</li>
-        </ul>
-      </details>
-    </section>
-
-    <section class="grid cols-2 section">
-      <div class="card">
-        <h2>Regler (prototype v0.2.3)</h2>
-        <ul class="list small">
-          <li><b>Tjanser</b>: Max 1 pr. elev pr. weekend (køkkenelever udelukkes).</li>
-          <li><b>Knap-mode</b>: Hvis der mangler hænder, får nogle elever flere tjanser (kommer i næste iteration).</li>
-          <li><b>Rengøring</b>: Lørdag + søndag. Prøver at lave <b>stabil</b> plan (samme elev samme område begge dage). En-dags-elever bliver på egen gang.</li>
-        </ul>
-      </div>
-
-      <div class="card">
-        <h2>Weekendmarkering</h2>
-        <p class="small">Justér tilstedeværelse, “hjem lør 12” og køkkenelever før du genererer forslag.</p>
-        <div class="table-wrap">
-          <table id="screenTable">
-            <thead>
-              <tr>
-                <th>Navn</th>
-                <th>Gang</th>
-                <th>Værelse</th>
-                <th class="center">Fre</th>
-                <th class="center">Lør</th>
-                <th class="center">Søn</th>
-                <th class="center">Hjem lør 12</th>
-                <th class="center">Køkkenelev</th>
-                <th>K-grp</th>
-              </tr>
-            </thead>
-            <tbody id="screenTbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <div class="print-only">
-    <div class="page" id="page1"></div>
-    <div class="page" id="page2"></div>
-    <div class="page" id="page3"></div>
-  </div>
-
-  <script src="app.js"></script>
+<body class="text-white font-sans">
+    <div id="root"></div>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
