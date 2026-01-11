@@ -549,6 +549,7 @@ const App = () => {
              {previewType === 'brand' && (
                 <div className="space-y-4">
                    {(() => {
+                      // Gruppér elever efter GANG i stedet for specifik lokation
                       const houseGroups: Record<string, any[]> = {};
                       students.filter(s => s.isPresent).forEach(s => {
                          const loc = s.sleepingLocations[brandListDay];
@@ -558,24 +559,25 @@ const App = () => {
                       });
 
                       return Object.entries(houseGroups).sort().map(([houseName, sts], i) => (
-                          <div key={houseName} className="a4-page page-break bg-white text-black p-[12mm] border-[12px] border-red-600 flex flex-col h-[297mm]">
-                             <div className="flex justify-between items-end border-b-[8px] border-red-600 pb-4 mb-6">
+                          <div key={houseName} className="a4-page page-break bg-white text-black p-[15mm] border-[15px] border-red-600 flex flex-col h-[297mm]">
+                             <div className="flex justify-between items-end border-b-[10px] border-red-600 pb-6 mb-10">
                                 <div>
-                                  <h1 className="text-5xl font-black text-red-600 uppercase italic leading-none">BRANDLISTE</h1>
-                                  <p className="text-base font-bold mt-1 opacity-50 uppercase tracking-widest">UGE {weekendNum} • {brandListDay}</p>
+                                  <h1 className="text-6xl font-black text-red-600 uppercase italic leading-none">BRANDLISTE</h1>
+                                  <p className="text-xl font-bold mt-2 opacity-40 uppercase tracking-widest">UGE {weekendNum} • {brandListDay}</p>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-[70px] font-black text-red-600 leading-[0.8]">{sts.length}</p>
-                                  <p className="text-[9px] font-black uppercase opacity-40 tracking-widest">STYK</p>
+                                  <p className="text-[100px] font-black text-red-600 leading-[0.8]">{sts.length}</p>
+                                  <p className="text-[10px] font-black uppercase opacity-40 tracking-widest">STYK</p>
                                 </div>
                              </div>
 
-                             <div className="mb-6">
-                               <h2 className="text-[60px] font-black uppercase tracking-tighter leading-none">{houseName}</h2>
+                             <div className="mb-12">
+                               <h2 className="text-[80px] font-black uppercase tracking-tighter leading-none">{houseName}</h2>
                              </div>
                              
-                             <div className={`grid gap-x-10 gap-y-4 flex-1 ${sts.length > 14 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                             <div className="space-y-8 flex-1 overflow-hidden">
                                 {(() => {
+                                   // Gruppér de enkelte værelser indenfor gangen
                                    const roomGroups: Record<string, any[]> = {};
                                    sts.forEach(s => {
                                       const roomPart = s.sleepingLocations[brandListDay].split(' - ')[1] || 'Fælles';
@@ -584,13 +586,13 @@ const App = () => {
                                    });
 
                                    return Object.entries(roomGroups).sort().map(([room, roomSts]) => (
-                                      <div key={room} className="border-l-[6px] border-red-600 pl-4 py-1 break-inside-avoid">
-                                         <p className="text-lg font-black text-red-600 mb-1 uppercase tracking-tight italic">
+                                      <div key={room} className="border-l-[12px] border-red-600 pl-10 py-2 break-inside-avoid">
+                                         <p className="text-4xl font-black text-red-600 mb-4 uppercase tracking-tight italic">
                                             {room === 'Fælles' ? 'PLADS' : 'VÆRELSE'} {room}
                                          </p>
-                                         <div className="grid gap-1">
+                                         <div className="grid gap-3">
                                            {roomSts.map((s, idx) => (
-                                             <p key={idx} className="text-2xl font-bold tracking-tight border-b border-slate-100 pb-0.5 leading-tight">
+                                             <p key={idx} className="text-4xl font-bold tracking-tight border-b-2 border-slate-100 pb-2 leading-tight">
                                                 {s.firstName} {s.lastName}
                                              </p>
                                            ))}
@@ -600,7 +602,7 @@ const App = () => {
                                 })()}
                              </div>
 
-                             <div className="pt-4 flex justify-between items-center text-[8px] font-black uppercase opacity-30 border-t border-slate-100 italic">
+                             <div className="pt-10 flex justify-between items-center text-[10px] font-black uppercase opacity-20 border-t-2 border-slate-100 italic">
                                <span>Udskrevet: {new Date().toLocaleDateString('da-DK')}</span>
                                <span>Weekend Uge {weekendNum} • Side {i+1}</span>
                              </div>
@@ -758,7 +760,7 @@ const App = () => {
                     <div className="flex gap-4 items-start"><Users className="text-[#FFB300] shrink-0 mt-1"/><p className="text-sm"><b>Tilmeld/Afmeld:</b> Klik på navnedelen af elevkortet. Knappen til højre er kun til køkkentjans.</p></div>
                     <div className="flex gap-4 items-start"><Filter className="text-[#00BFA5] shrink-0 mt-1"/><p className="text-sm"><b>Gang-filter:</b> Filtrér listen i toppen for at finde specifikke elever hurtigt.</p></div>
                     <div className="flex gap-4 items-start"><Printer className="text-[#1E88E5] shrink-0 mt-1"/><p className="text-sm"><b>Print:</b> Tjanser udskrives med én side for hver dag. Nu også med Eftermiddagsservering og Aftensmad søndag.</p></div>
-                    <div className="flex gap-4 items-start"><Flame className="text-[#D81B60] shrink-0 mt-1"/><p className="text-sm"><b>Brandlister:</b> Hele gangen samles nu på én side automatisk ved udprint for overblik. Layoutet tilpasser sig antallet af elever.</p></div>
+                    <div className="flex gap-4 items-start"><Flame className="text-[#D81B60] shrink-0 mt-1"/><p className="text-sm"><b>Brandlister:</b> Hele gangen samles nu på én side automatisk ved udprint for overblik.</p></div>
                  </div>
               </div>
               <button onClick={() => setShowFaq(false)} className="w-full py-5 bg-white text-black rounded-2xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all">Forstået</button>
