@@ -30,7 +30,7 @@ const cleanValue = (val: any) => {
 };
 
 // --- KONFIGURATION ---
-const STORAGE_KEY = 'weekend_master_v12_final';
+const STORAGE_KEY = 'weekend_master_v11_stable';
 const WISE_COLORS = ['bg-[#FFB300]', 'bg-[#00BFA5]', 'bg-[#D81B60]', 'bg-[#1E88E5]', 'bg-[#5E35B1]'];
 
 const CLEANING_CONFIG = [
@@ -52,13 +52,11 @@ const TASK_CONFIG = [
   { id: 'f3', label: 'Aftenservering', day: 'Fredag' },
   { id: 'l1', label: 'Før Mokost', day: 'Lørdag' },
   { id: 'l2', label: 'Efter Mokost', day: 'Lørdag' },
-  { id: 'l6', label: 'Eftermiddagsservering', day: 'Lørdag' },
   { id: 'l3', label: 'Før Aftensmad', day: 'Lørdag' },
   { id: 'l4', label: 'Efter Aftensmad', day: 'Lørdag' },
   { id: 'l5', label: 'Aftenservering', day: 'Lørdag' },
   { id: 's1', label: 'Før Mokost', day: 'Søndag' },
-  { id: 's2', label: 'Efter Mokost', day: 'Søndag' },
-  { id: 's3', label: 'Eftermiddagsservering', day: 'Søndag' }
+  { id: 's2', label: 'Efter Mokost', day: 'Søndag' }
 ];
 
 const COMMON_SLEEPING_AREAS = ["Teltet", "Shelteret", "Gymnastiksalen", "Medie", "Biografen", "Andet"];
@@ -327,28 +325,14 @@ const App = () => {
 
                 {filtered.map((s, i) => (
                   <div key={s.id} className="relative overflow-hidden rounded-[2rem] mb-2 wise-card">
-                    <div className={`${WISE_COLORS[i % 5]} p-0 text-black shadow-lg flex items-stretch transition-transform duration-150 select-none ${!s.isPresent ? 'opacity-30 grayscale' : ''}`}>
-                      {/* VENSTRE DEL: Til/Frameld */}
-                      <div 
-                        className="flex-1 p-5 min-w-0 flex flex-col justify-center active:bg-black/5 transition-colors cursor-pointer"
-                        onClick={() => setStudents(p => p.map(x => x.id === s.id ? {...x, isPresent: !x.isPresent, stayType: !x.isPresent ? 'full' : 'none'} : x))}
-                      >
+                    <div className={`${WISE_COLORS[i % 5]} p-5 text-black shadow-lg flex items-center justify-between gap-4 transition-transform duration-150 select-none ${!s.isPresent ? 'opacity-30 grayscale' : ''}`}>
+                      <div className="flex-1 min-w-0" onClick={() => setStudents(p => p.map(x => x.id === s.id ? {...x, isPresent: !x.isPresent, stayType: !x.isPresent ? 'full' : 'none'} : x))}>
                           <p className="text-lg font-black leading-tight break-words">{s.firstName} {s.lastName}</p>
                           <span className="text-[10px] font-black uppercase opacity-60 tracking-[0.1em]">{s.house} • {s.room}</span>
                       </div>
-                      
-                      {/* DELER */}
-                      <div className="w-px bg-black/10 my-4" />
-
-                      {/* HØJRE DEL: Køkkentjans */}
-                      <div className="p-4 flex items-center">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setStudents(p => p.map(x => x.id === s.id ? {...x, isKitchenDuty: !x.isKitchenDuty} : x)) }} 
-                          className={`px-5 py-3.5 rounded-xl text-[9px] font-black uppercase border tracking-[0.1em] transition-all shrink-0 ${s.isKitchenDuty ? 'bg-black text-white border-black shadow-lg' : 'bg-black/10 border-transparent text-black'}`}
-                        >
-                          {s.isKitchenDuty ? 'I Køkken' : 'Køkken?'}
-                        </button>
-                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); setStudents(p => p.map(x => x.id === s.id ? {...x, isKitchenDuty: !x.isKitchenDuty} : x)) }} className={`w-28 py-3.5 rounded-xl text-[9px] font-black uppercase border tracking-[0.1em] transition-all shrink-0 ${s.isKitchenDuty ? 'bg-black text-white border-black' : 'bg-black/10 border-transparent text-black'}`}>
+                        {s.isKitchenDuty ? 'I Køkken' : 'Køkken?'}
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -375,6 +359,7 @@ const App = () => {
                       {isExp && (
                         <div className="p-3 border-t border-white/5 space-y-2 bg-black/20">
                           {houseSts.map(s => {
+                            // Vi viser fredag som standard i listen, da dagsvalg er fjernet
                             const isChanged = s.sleepingLocations['Fredag'] !== `${s.house} - ${s.room}`;
                             return (
                               <div key={s.id} className={`bg-white/5 p-5 rounded-2xl flex justify-between items-center border transition-all ${isChanged ? 'border-[#FFB300]/50 bg-[#FFB300]/5' : 'border-transparent'}`}>
@@ -648,6 +633,7 @@ const App = () => {
              </div>
              
              <div className="overflow-y-auto custom-scroll space-y-8 pr-2 flex-1">
+               {/* Fredag er dagsvalget i editor modalen for at have et fast holdepunkt i UI */}
                <div>
                   <p className="text-[9px] font-black uppercase text-[#FFB300] ml-1 tracking-[0.2em] mb-3 opacity-60 italic">Prioritet 1: Eget værelse</p>
                   <button onClick={() => {
@@ -754,10 +740,10 @@ const App = () => {
               <div className="flex justify-between items-center"><h2 className="text-3xl font-black uppercase tracking-tighter text-[#FFB300]">Brugervejledning</h2><button onClick={() => setShowFaq(false)} className="p-3 bg-white/5 rounded-full hover:bg-white/10"><X/></button></div>
               <div className="space-y-6">
                  <div className="space-y-5">
-                    <div className="flex gap-4 items-start"><Users className="text-[#FFB300] shrink-0 mt-1"/><p className="text-sm"><b>Tilmeld/Afmeld:</b> Klik på navnedelen af elevkortet. Knappen til højre er kun til køkkentjans.</p></div>
-                    <div className="flex gap-4 items-start"><Filter className="text-[#00BFA5] shrink-0 mt-1"/><p className="text-sm"><b>Gang-filter:</b> Filtrér listen i toppen for at finde specifikke elever hurtigt.</p></div>
-                    <div className="flex gap-4 items-start"><Printer className="text-[#1E88E5] shrink-0 mt-1"/><p className="text-sm"><b>Print:</b> Tjanser udskrives med én side for hver dag. Nu også med Eftermiddagsservering.</p></div>
-                    <div className="flex gap-4 items-start"><Flame className="text-[#D81B60] shrink-0 mt-1"/><p className="text-sm"><b>Brandlister:</b> Hele gangen samles nu på én side automatisk ved udprint for overblik.</p></div>
+                    <div className="flex gap-4 items-start"><Users className="text-[#FFB300] shrink-0 mt-1"/><p className="text-sm"><b>Tilmeld/Afmeld:</b> Klik blot på elevkortet i elevlisten for at skifte tilstedeværelse. Frameldte elever bliver utydelige.</p></div>
+                    <div className="flex gap-4 items-start"><Filter className="text-[#00BFA5] shrink-0 mt-1"/><p className="text-sm"><b>Gang-filter:</b> Du kan filtrere elevlisten på en bestemt gang via rullemenuen i toppen af Elevlisten.</p></div>
+                    <div className="flex gap-4 items-start"><Printer className="text-[#1E88E5] shrink-0 mt-1"/><p className="text-sm"><b>Print:</b> Tjanser udskrives nu med én side for hver dag (Fredag, Lørdag, Søndag) for bedre overblik.</p></div>
+                    <div className="flex gap-4 items-start"><Flame className="text-[#D81B60] shrink-0 mt-1"/><p className="text-sm"><b>Brandlister:</b> Hele gangen samles nu på én side automatisk ved udprint for at give bedre overblik.</p></div>
                  </div>
               </div>
               <button onClick={() => setShowFaq(false)} className="w-full py-5 bg-white text-black rounded-2xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all">Forstået</button>
