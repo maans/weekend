@@ -58,10 +58,7 @@ const TASK_CONFIG = [
   { id: 'l5', label: 'Aftenservering', day: 'Lørdag' },
   { id: 's1', label: 'Før Mokost', day: 'Søndag' },
   { id: 's2', label: 'Efter Mokost', day: 'Søndag' },
-  { id: 's3', label: 'Eftermiddagsservering', day: 'Søndag' },
-  { id: 's4', label: 'Før Aftensmad', day: 'Søndag' },
-  { id: 's5', label: 'Efter Aftensmad', day: 'Søndag' },
-  { id: 's6', label: 'Aftenservering', day: 'Søndag' }
+  { id: 's3', label: 'Eftermiddagsservering', day: 'Søndag' }
 ];
 
 const COMMON_SLEEPING_AREAS = ["Teltet", "Shelteret", "Gymnastiksalen", "Medie", "Biografen", "Andet"];
@@ -759,7 +756,7 @@ const App = () => {
                  <div className="space-y-5">
                     <div className="flex gap-4 items-start"><Users className="text-[#FFB300] shrink-0 mt-1"/><p className="text-sm"><b>Tilmeld/Afmeld:</b> Klik på navnedelen af elevkortet. Knappen til højre er kun til køkkentjans.</p></div>
                     <div className="flex gap-4 items-start"><Filter className="text-[#00BFA5] shrink-0 mt-1"/><p className="text-sm"><b>Gang-filter:</b> Filtrér listen i toppen for at finde specifikke elever hurtigt.</p></div>
-                    <div className="flex gap-4 items-start"><Printer className="text-[#1E88E5] shrink-0 mt-1"/><p className="text-sm"><b>Print:</b> Tjanser udskrives med én side for hver dag. Nu også med Eftermiddagsservering og Aftensmad søndag.</p></div>
+                    <div className="flex gap-4 items-start"><Printer className="text-[#1E88E5] shrink-0 mt-1"/><p className="text-sm"><b>Print:</b> Tjanser udskrives med én side for hver dag. Nu også med Eftermiddagsservering.</p></div>
                     <div className="flex gap-4 items-start"><Flame className="text-[#D81B60] shrink-0 mt-1"/><p className="text-sm"><b>Brandlister:</b> Hele gangen samles nu på én side automatisk ved udprint for overblik.</p></div>
                  </div>
               </div>
