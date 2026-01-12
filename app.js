@@ -1060,31 +1060,12 @@ updateStatus(){
 
   openHelp(){
     const m = document.getElementById("helpModal");
-    m.innerHTML = `
-      <div class="dialog">
-        <div class="closeRow">
-          <h2 style="color:#ffc107">Vejledning</h2>
-          <button class="btn" onclick="UI.closeHelp()">Luk</button>
-        </div>
-        <div class="small">
-          <p><b>Import:</b> Hent din elevliste som Excel (eller CSV) i administrationssystemet og indlæs den under <b>Data</b>.</p>
-          <p><b>Elever:</b> Brug <b>Køkken</b> til at fritage elever fra automatisk fordeling. <b>Hjem lør</b> gør det mere sandsynligt at få en fredagstjans.</p>
-          <p><b>Runder:</b> Fold et område ud for at se elever pr. værelse. Brug <b>Brand</b> til at flytte sovested pr. dag.</p>
-          <p><b>Fordeling:</b> I Tjanser/RENG kan du fordele automatisk. Brug låsen til at “låse” en plads/et område.</p>
-          <p><b>Print:</b> Print-fanen giver 1-tryk print. Søndagslisten er 3 kolonner, og brandlister viser sovesteder med optælling.</p>
-        </div>
-        <div style="margin-top:14px;">
-          <button class="btn" style="width:100%;border-radius:18px;padding:14px 12px;font-weight:900" onclick="UI.closeHelp()">Luk vejledning</button>
-        </div>
-      </div>
-    `;
     m.classList.remove("hidden");
     m.onclick = (e)=>{ if(e.target===m) UI.closeHelp(); };
   },
   closeHelp(){
     const m = document.getElementById("helpModal");
     m.classList.add("hidden");
-    m.innerHTML = "";
   },
   emptyState(){
     return `
