@@ -1,8 +1,106 @@
-body{margin:0;font-family:system-ui;background:#0b0e14;color:#fff}
-header{padding:10px;background:#111827;position:sticky;top:0}
-nav button{margin:2px;padding:8px;border-radius:8px;border:none}
-.view{display:none;padding:10px}
+/* Mobile-first layout */
+:root{
+  --bg:#0b0e14;
+  --panel:#111827;
+  --card:#1f2937;
+  --card2:#111827;
+  --ink:#ffffff;
+  --muted:#cbd5e1;
+  --line:rgba(255,255,255,.10);
+  --btn:#243043;
+  --danger:#7f1d1d;
+  --accent:#2563eb;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--ink)}
+.topbar{
+  position:sticky;top:0;z-index:5;
+  display:flex;justify-content:space-between;gap:10px;
+  padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--line);
+}
+.h1{font-weight:800;letter-spacing:.5px}
+.sub{font-size:12px;color:var(--muted);margin-top:2px}
+.actions{display:flex;align-items:center;gap:8px}
+.tabs{
+  position:sticky;top:58px;z-index:4;
+  display:flex;gap:6px;overflow:auto;
+  padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line)
+}
+.tab{
+  border:1px solid var(--line);background:transparent;color:var(--ink);
+  padding:8px 10px;border-radius:999px;white-space:nowrap;
+}
+.tab.active{border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.06)}
+.main{padding:10px 10px 80px}
+.view{display:none}
 .view.active{display:block}
-.student{display:flex;justify-content:space-between;align-items:center;
-padding:10px;border-radius:20px;margin:6px 0;background:#374151}
-footer{position:fixed;bottom:0;width:100%;padding:6px;background:#111827;display:flex;gap:6px}
+.card{
+  background:var(--card);border:1px solid var(--line);
+  border-radius:16px;padding:12px;margin:10px 0;
+}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{
+  border:1px solid var(--line);background:var(--btn);color:var(--ink);
+  padding:10px 12px;border-radius:12px;
+}
+.btn.small{padding:7px 9px;border-radius:10px;font-size:13px}
+.btn.danger{background:var(--danger)}
+.file{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--btn);
+  cursor:pointer;
+}
+.file input{display:none}
+input[type="text"], input[type="number"], select, textarea{
+  width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);
+  background:#0f172a;color:var(--ink);
+}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:3px 10px;border-radius:999px;border:1px solid var(--line);
+  font-size:12px;color:var(--muted)
+}
+.student{
+  display:flex;justify-content:space-between;gap:10px;align-items:flex-start;
+  padding:10px 12px;border-radius:16px;border:1px solid var(--line);
+  background:rgba(255,255,255,.04);margin:8px 0;
+}
+.student .meta{font-size:12px;color:var(--muted);margin-top:2px}
+.toggles{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.toggle{
+  display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)
+}
+.toggle input{transform:scale(1.15)}
+.hr{height:1px;background:var(--line);margin:10px 0}
+.small{font-size:12px;color:var(--muted)}
+.kbd{border:1px solid var(--line);border-radius:8px;padding:2px 8px;font-size:12px;color:var(--muted)}
+.list{display:flex;flex-direction:column;gap:8px}
+.areaRow{
+  display:grid;grid-template-columns:1fr 90px;
+  gap:10px;align-items:center;padding:10px;border-radius:14px;border:1px solid var(--line);
+  background:rgba(255,255,255,.03)
+}
+.areaRow .name{font-weight:700}
+.pair{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pair .pill{padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:var(--muted)}
+/* bottom bar */
+.bottombar{
+  position:fixed;left:0;right:0;bottom:0;z-index:6;
+  display:flex;gap:8px;justify-content:space-between;align-items:center;
+  padding:8px 10px;background:var(--panel);border-top:1px solid var(--line);
+}
+.bottombar .btn, .bottombar .file{flex:1}
+/* print */
+@media print{
+  body{background:#fff;color:#000}
+  .topbar,.tabs,.bottombar{display:none!important}
+  .main{padding:0}
+  .printArea{display:block!important}
+  .printCard{page-break-inside:avoid;margin:0 0 10mm 0}
+  .printTitle{font-size:18pt;font-weight:800;text-align:center;margin:0 0 6mm 0}
+  .printSub{font-size:11pt;text-align:center;margin:0 0 6mm 0;color:#111}
+  table{width:100%;border-collapse:collapse;font-size:12pt}
+  th,td{border-bottom:1px solid #ddd;padding:6px;vertical-align:top;text-align:left}
+  .brandBox{border:3px solid #b91c1c;padding:8px;margin:0 0 8mm 0}
+}
+.printArea{display:none}
