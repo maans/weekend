@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WeekendLister</title>
+<title>WEEKEND</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
 </head>
@@ -14,37 +14,33 @@
     <div class="sub" id="statusLine">Ingen data</div>
   </div>
   <div class="actions">
-    <button class="btn" onclick="Print.print()">Print</button>
+    <button class="iconbtn" title="Vejledning" onclick="UI.openHelp()">?</button>
+    <button class="iconbtn danger" title="Nulstil alt" onclick="App.reset()">↺</button>
   </div>
 </header>
 
-<nav class="tabs">
-  <button class="tab active" data-tab="weekend" onclick="UI.show('weekend')">Weekendvagt</button>
-  <button class="tab" data-tab="sunday" onclick="UI.show('sunday')">Søndag</button>
-  <button class="tab" data-tab="duties" onclick="UI.show('duties')">Tjanser</button>
-  <button class="tab" data-tab="reng" onclick="UI.show('reng')">RENG</button>
-  <button class="tab" data-tab="brand" onclick="UI.show('brand')">Brand</button>
-  <button class="tab" data-tab="help" onclick="UI.show('help')">Hjælp</button>
-</nav>
+<footer class="nav">
+  <button class="navbtn active" data-tab="data" onclick="UI.show('data')">Data</button>
+  <button class="navbtn" data-tab="weekend" onclick="UI.show('weekend')">Elever</button>
+  <button class="navbtn" data-tab="runder" onclick="UI.show('runder')">Runder</button>
+  <button class="navbtn" data-tab="duties" onclick="UI.show('duties')">Tjanser</button>
+  <button class="navbtn" data-tab="reng" onclick="UI.show('reng')">RENG</button>
+  <button class="navbtn" data-tab="brand" onclick="UI.show('brand')">Brand</button>
+  <button class="navbtn" data-tab="print" onclick="UI.show('print')">Print</button>
+</footer>
 
 <main class="main">
+  <section id="data" class="view"></section>
   <section id="weekend" class="view"></section>
-  <section id="sunday" class="view"></section>
+  <section id="runder" class="view"></section>
   <section id="duties" class="view"></section>
   <section id="reng" class="view"></section>
   <section id="brand" class="view"></section>
-  <section id="help" class="view"></section>
+  <section id="print" class="view"></section>
+  <section id="sunday" class="view"></section>
 </main>
 
-<footer class="bottombar">
-  <label class="file">
-    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
-    <span>Importér Excel/CSV</span>
-  </label>
-  <button class="btn" onclick="Demo.load()">Indlæs demo</button>
-  <button class="btn danger" onclick="App.reset()">Nulstil</button>
-</footer>
-
+<div id="helpModal" class="modal hidden" role="dialog" aria-modal="true"></div>
 <div id="printArea" class="printArea"></div>
 
 <script src="app.js"></script>

@@ -104,3 +104,142 @@ input[type="text"], input[type="number"], select, textarea{
   .brandBox{border:3px solid #b91c1c;padding:8px;margin:0 0 8mm 0}
 }
 .printArea{display:none}
+
+
+/* --- Layout overhaul (bottom nav + modal help) --- */
+body{ padding-bottom:76px; } /* room for bottom nav */
+header.topbar{ position:sticky; top:0; z-index:20; }
+footer.nav{
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  display:flex; gap:8px; padding:10px 10px 14px;
+  background:rgba(10,14,20,.92);
+  border-top:1px solid rgba(255,255,255,.06);
+  backdrop-filter: blur(10px);
+}
+.navbtn{
+  flex:1;
+  border-radius:14px;
+  padding:12px 8px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  color:rgba(255,255,255,.86);
+  font-weight:700;
+  font-size:12px;
+}
+.navbtn.active{
+  background:rgba(255,193,7,.95);
+  color:#0b0f15;
+  border-color:rgba(255,193,7,.95);
+}
+.iconbtn{
+  width:40px; height:40px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);
+  color:rgba(255,255,255,.9);
+  font-weight:900;
+}
+.iconbtn.danger{ color:#ffb4b4; border-color:rgba(255,120,120,.25); }
+
+.view{ padding-bottom:18px; }
+.student.finished{ opacity:.55; }
+.student.finished:hover{ opacity:.75; }
+
+.modal.hidden{ display:none; }
+.modal{
+  position:fixed; inset:0; z-index:50;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.55);
+  padding:18px;
+}
+.modal .dialog{
+  width:min(560px, 100%);
+  border-radius:22px;
+  background:rgba(18,24,34,.98);
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 20px 80px rgba(0,0,0,.55);
+  padding:18px 18px 16px;
+}
+.modal .dialog h2{
+  margin:0 0 10px;
+  font-size:22px;
+  letter-spacing:.02em;
+}
+.modal .dialog .closeRow{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:8px;
+}
+.modal .dialog .closeRow button{
+  border-radius:14px; padding:10px 14px;
+}
+
+.bigAction{
+  border-radius:26px;
+  padding:18px;
+  font-weight:900;
+  font-size:18px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border:1px solid rgba(255,255,255,.10);
+}
+.bigAction .subline{
+  font-weight:700;
+  font-size:12px;
+  letter-spacing:0;
+  text-transform:none;
+  opacity:.85;
+  margin-top:6px;
+}
+.bigActionRow{ display:flex; flex-direction:column; gap:14px; }
+
+.dropzone{
+  border-radius:28px;
+  border:2px dashed rgba(255,255,255,.14);
+  background:rgba(255,255,255,.03);
+  padding:26px 18px;
+  text-align:center;
+}
+.dropzone .dzTitle{
+  font-size:20px; font-weight:900; letter-spacing:.06em; text-transform:uppercase;
+  margin-bottom:12px;
+}
+.dropzone .dzBtn{
+  display:inline-block;
+  padding:14px 18px;
+  border-radius:18px;
+  background:rgba(0,230,200,.92);
+  color:#071016;
+  font-weight:900;
+  border:1px solid rgba(0,230,200,.92);
+}
+.smallBtnRow{ display:flex; gap:12px; margin-top:14px; }
+.smallBtnRow .btn{ flex:1; border-radius:18px; padding:14px 12px; font-weight:800; }
+
+.printCardPick{
+  border-radius:28px;
+  padding:18px;
+  border:1px solid rgba(255,255,255,.10);
+}
+.weekInput{
+  width:100%;
+  border-radius:22px;
+  padding:16px 18px;
+  font-size:18px;
+  font-weight:900;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.03);
+  color:rgba(255,255,255,.92);
+}
+.dayPills{ display:flex; gap:10px; margin-top:12px; }
+.dayPills button{
+  flex:1; border-radius:18px; padding:10px 10px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.03);
+  color:rgba(255,255,255,.85);
+  font-weight:800;
+}
+.dayPills button.active{
+  background:rgba(255,193,7,.95); color:#0b0f15; border-color:rgba(255,193,7,.95);
+}

@@ -460,18 +460,164 @@ const Reng = {
 const UI = {
   show(tab){
     document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-    document.getElementById(tab).classList.add("active");
-    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab===tab));
+    const target = document.getElementById(tab);
+    if(target) target.classList.add("active");
+
+    // nav buttons
+    document.querySelectorAll(".navbtn").forEach(b => b.classList.toggle("active", b.dataset.tab===tab));
+
+    // render on demand
+    if(tab==="data") UI.renderData();
     if(tab==="weekend") UI.renderWeekend();
-    if(tab==="sunday") UI.renderSunday();
+    if(tab==="runder") UI.renderRunder();
     if(tab==="duties") UI.renderDuties();
     if(tab==="reng") UI.renderReng();
     if(tab==="brand") UI.renderBrand();
-    if(tab==="help") UI.renderHelp();
+    if(tab==="print") UI.renderPrint();
+    if(tab==="sunday") UI.renderSunday();
+
     UI.updateStatus();
   },
 
-  updateStatus(){
+  
+  renderData(){
+    const el = document.getElementById("data");
+    const li = App.state.lastImport;
+    const last = li ? `${li.filename} • ${new Date(li.ts).toLocaleString("da-DK")}` : "—";
+
+    el.innerHTML = `
+      <div class="card">
+        <div class="dropzone">
+          <div class="dzTitle">Indlæs elevdata</div>
+          <div class="small">Hent en Excel-fil fra administrationssystemet (eller brug demo til at teste).</div>
+          <div style="margin-top:14px;">
+            <label class="dzBtn">
+              Vælg Excel-fil
+              <input type="file" id="fileInput2" accept=".xlsx,.xls,.csv" style="display:none">
+            </label>
+          </div>
+          <div class="small" style="margin-top:12px;">Sidst indlæst: <b>${last}</b></div>
+        </div>
+
+        <div class="smallBtnRow">
+          <button class="btn" onclick="Demo.load();UI.show('data')">Indlæs demo</button>
+          <button class="btn" onclick="Backup.export()">Eksport backup</button>
+          <button class="btn" onclick="Backup.import()">Import backup</button>
+        </div>
+
+        <div class="hr"></div>
+        <button class="btn danger" style="width:100%;border-radius:18px;padding:14px 12px;font-weight:900" onclick="App.reset()">Nulstil alt</button>
+      </div>
+    `;
+
+    const inp = document.getElementById("fileInput2");
+    inp.addEventListener("change", async (e)=>{
+      const file = e.target.files?.[0];
+      if(!file) return;
+      await Importer.loadFile(file);
+      UI.show('weekend');
+    });
+  },
+
+  renderRunder(){
+    // existing runder view is named "reng/brand" only in this build; we map to Brand for now if missing
+    const el = document.getElementById("runder");
+    if(!App.state.students.length){
+      el.innerHTML = UI.emptyState();
+      return;
+    }
+    // Use existing Brand grouping as a 'runder light' overview: by house with expand.
+    const day = App.state._roundDay || "fri";
+    const dayLabel = day==="fri"?"Fredag":(day==="sat"?"Lørdag":"Søndag");
+    const list = Selectors.weekendStudents();
+    const byHouse = new Map();
+    for(const s of list){
+      if(!byHouse.has(s.house)) byHouse.set(s.house, []);
+      byHouse.get(s.house).push(s);
+    }
+    const order = App.state.houseOrder || [...byHouse.keys()].sort((a,b)=>a.localeCompare(b,'da'));
+    el.innerHTML = `
+      <div class="card">
+        <div style="font-weight:900;letter-spacing:.06em;text-transform:uppercase;">Runder</div>
+        <div class="small">Fold et område ud for at se elever sorteret efter værelse. Brug Brand til at flytte sovested.</div>
+        <div class="dayPills">
+          <button class="${day==="fri"?"active":""}" onclick="App.state._roundDay='fri';App.save(false);UI.renderRunder()">Fredag</button>
+          <button class="${day==="sat"?"active":""}" onclick="App.state._roundDay='sat';App.save(false);UI.renderRunder()">Lørdag</button>
+          <button class="${day==="sun"?"active":""}" onclick="App.state._roundDay='sun';App.save(false);UI.renderRunder()">Søndag</button>
+        </div>
+        <div class="badge" style="margin-top:10px;">Visning: ${dayLabel}</div>
+      </div>
+    `;
+    for(const h of order){
+      const arr = (byHouse.get(h)||[]).slice().sort((a,b)=>Util.cmpRoom(a.room,b.room) || Util.cmpName(a,b));
+      const open = !!(App.state._openHouse && App.state._openHouse===h);
+      el.innerHTML += `
+        <div class="card">
+          <div class="row" style="justify-content:space-between;align-items:center;">
+            <div style="font-weight:900">${h} <span class="badge">${arr.length}</span></div>
+            <button class="btn" onclick="App.state._openHouse=${json.dumps(h)};App.save(false);UI.renderRunder()">${open?'Skjul':'Vis'}</button>
+          </div>
+          ${open ? `<div style="margin-top:10px;">
+            ${arr.map(s=>`<div class="student" style="margin:8px 0;">
+              <div style="flex:1"><b>${s.name}</b><div class="meta">${s.house} · ${s.room}</div></div>
+              <button class="btn" onclick="UI.show('brand');setTimeout(()=>{document.getElementById('brand')?.scrollIntoView({behavior:'smooth',block:'start'})},50)">Sovested</button>
+            </div>`).join('')}
+          </div>`:''}
+        </div>
+      `;
+    }
+  },
+
+  renderPrint(){
+    const el = document.getElementById("print");
+    const week = App.state.weekNumber || "";
+    const day = App.state._printDay || "fri";
+    const dayLabel = day==="fri"?"Fredag":(day==="sat"?"Lørdag":"Søndag");
+    el.innerHTML = `
+      <div class="card">
+        <div style="font-weight:900;letter-spacing:.06em;text-transform:uppercase;font-size:22px;">Print</div>
+
+        <div style="margin-top:14px;">
+          <input class="weekInput" placeholder="Uge nummer" value="${String(week).replaceAll('"','&quot;')}"
+            oninput="App.state.weekNumber=this.value.replace(/\D/g,'');App.save(false)">
+        </div>
+
+        <div class="dayPills">
+          <button class="${day==="fri"?"active":""}" onclick="App.state._printDay='fri';App.save(false);UI.renderPrint()">Fredag</button>
+          <button class="${day==="sat"?"active":""}" onclick="App.state._printDay='sat';App.save(false);UI.renderPrint()">Lørdag</button>
+          <button class="${day==="sun"?"active":""}" onclick="App.state._printDay='sun';App.save(false);UI.renderPrint()">Søndag</button>
+        </div>
+
+        <div class="bigActionRow" style="margin-top:16px;">
+          <div class="bigAction" style="background:rgba(255,193,7,.96);color:#0b0f15;" onclick="Print.print({mode:'duties', day:'${day}'})">
+            <div>
+              TJANSER
+              <div class="subline">Dag: ${dayLabel} • optimeret til A4</div>
+            </div>
+            <div>🍴</div>
+          </div>
+
+          <div class="bigAction" style="background:rgba(217,30,102,.92);color:#fff;" onclick="Print.print({mode:'brand', day:'${day}'})">
+            <div>
+              BRANDLISTER (${dayLabel.toUpperCase()})
+              <div class="subline">Sovesteder + optælling</div>
+            </div>
+            <div>🔥</div>
+          </div>
+
+          <div class="bigAction" style="background:rgba(0,230,200,.92);color:#071016;" onclick="Print.print({mode:'sunday'})">
+            <div>
+              SØNDAGSLISTE
+              <div class="subline">3 kolonner med afkrydsning</div>
+            </div>
+            <div>✅</div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+updateStatus(){
     const total = App.state.students.length;
     const present = Selectors.weekendStudents().length;
     const kitchen = App.state.students.filter(s => Selectors.flags(s.id).kitchen).length;
@@ -525,12 +671,13 @@ const UI = {
     // render
     for(const s of list){
       const f = Selectors.flags(s.id);
+      const finished = dutySet.has(s.id) || (f.kitchen) || (App.state.reng && Object.values(App.state.reng).some(a=>Array.isArray(a)&&a.includes(s.id)));
       const badges = [
         f.kitchen ? '<span class="badge">KØKKEN</span>' : '',
         f.leavesSaturday ? '<span class="badge">Hjem lør</span>' : '',
       ].join(" ");
       el.innerHTML += `
-        <div class="student">
+        <div class="student ${finished?'finished':''}">
           <div>
             <div><b>${s.firstName || s.name}</b> ${s.lastName?`<span class="small">${s.lastName}</span>`:""}</div>
             <div class="meta">${s.house} · ${s.room} ${badges}</div>
@@ -598,7 +745,7 @@ const UI = {
       const f = Selectors.flags(s.id);
       const label = f.isPresent ? "På skolen" : (f.sundayDinnerOnly ? "Søn aften" : "");
       el.innerHTML += `
-        <div class="student">
+        <div class="student ${finished?'finished':''}">
           <div>
             <div><b>${s.firstName || s.name}</b> ${s.lastName?`<span class="small">${s.lastName}</span>`:""}</div>
             <div class="meta">${label}</div>
@@ -836,7 +983,7 @@ const UI = {
       const safe = (x)=> String(x??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 
       el.innerHTML += `
-        <div class="student">
+        <div class="student ${finished?'finished':''}">
           <div style="flex:1;min-width:180px">
             <div><b>${safe(s.name)}</b></div>
             <div class="meta">${safe(s.house)} · ${safe(s.room)} <span class="badge">nu: ${safe(cur)}</span></div>
@@ -911,35 +1058,22 @@ const UI = {
     App.save(false);
   },
 
-  renderHelp(){
-    const el = document.getElementById("help");
-    const li = App.state.lastImport;
-    const last = li ? `${li.filename} • ${new Date(li.ts).toLocaleString("da-DK")}` : "—";
-    el.innerHTML = `
-      <div class="card">
-        <div style="font-weight:800;margin-bottom:6px;">Quickstart</div>
-        <ol class="small">
-          <li>Tryk <b>Indlæs demo</b> for at teste uden rigtige data.</li>
-          <li>Eller: Importér Excel/CSV fra administrationssystemet.</li>
-          <li>Brug fanerne til Weekendvagt, Søndag, Tjanser, RENG og Brand.</li>
-          <li>Alt gemmes lokalt i browseren (localStorage).</li>
-        </ol>
-        <div class="hr"></div>
-        <div class="small"><b>Seneste import:</b> ${last}</div>
-      </div>
-
-      <div class="card">
-        <div style="font-weight:800;margin-bottom:6px;">FAQ</div>
-        <div class="small">
-          <p><b>Sender appen data ud?</b><br>Nej. Ingen server, ingen login, ingen upload. Data bliver i din browser.</p>
-          <p><b>Hvad med køkkenelever?</b><br>Markér “Køkken”. De udelukkes automatisk fra auto-tjanser og RENG.</p>
-          <p><b>Kan jeg genimportere Excel?</b><br>Ja – men import erstatter elevlisten, fordi Excel repræsenterer seneste status. Brug demo til test.</p>
-        </div>
-      </div>
-    `;
   },
 
-  emptyState(){
+  
+  openHelp(){
+    const m = document.getElementById("helpModal");
+    m.innerHTML = "\n      <div class=\"dialog\">\n        <div class=\"closeRow\">\n          <h2 style=\"color:#ffc107\">Vejledning</h2>\n          <button class=\"btn\" onclick=\"UI.closeHelp()\">Luk</button>\n        </div>\n        <div class=\"small\">\n          <p><b>Import:</b> Hent din elevliste som Excel (eller CSV) i administrationssystemet og indl\u00e6s den under <b>Data</b>.</p>\n          <p><b>Elever:</b> Brug <b>K\u00f8kken</b> til at fritage elever fra automatisk fordeling. <b>Hjem l\u00f8r</b> g\u00f8r det mere sandsynligt at f\u00e5 en fredagstjans.</p>\n          <p><b>Runder:</b> Fold et omr\u00e5de ud for at se elever pr. v\u00e6relse. Brug <b>Brand</b> til at flytte sovested pr. dag.</p>\n          <p><b>Fordeling:</b> I Tjanser/RENG kan du fordele automatisk. Brug l\u00e5sen til at \u201cl\u00e5se\u201d en plads/et omr\u00e5de.</p>\n          <p><b>Print:</b> Print-fanen giver 1-tryk print. S\u00f8ndagslisten er 3 kolonner, og brandlister viser sovesteder med opt\u00e6lling.</p>\n        </div>\n        <div style=\"margin-top:14px;\">\n          <button class=\"btn\" style=\"width:100%;border-radius:18px;padding:14px 12px;font-weight:900\" onclick=\"UI.closeHelp()\">Luk vejledning</button>\n        </div>\n      </div>\n";
+    m.classList.remove("hidden");
+    m.onclick = (e)=>{ if(e.target===m) UI.closeHelp(); };
+  },
+  closeHelp(){
+    const m = document.getElementById("helpModal");
+    m.classList.add("hidden");
+    m.innerHTML = "";
+  },
+
+emptyState(){
     return `
       <div class="card">
         <div style="font-weight:800;margin-bottom:6px;">Ingen data endnu</div>
@@ -950,7 +1084,7 @@ const UI = {
 };
 
 const Print = {
-  print(){
+  print(opts={}){
     if(!App.state.students.length){
       alert("Indlæs demo eller importér data først.");
       return;
@@ -958,7 +1092,10 @@ const Print = {
     Print.build();
     window.print();
   },
-  build(){
+  build(opts={}){
+    const mode = opts.mode || 'all';
+    const day = opts.day || 'fri';
+    const weekNo = App.state.weekNumber || '';
     const area = document.getElementById("printArea");
     const total = App.state.students.length;
     const present = Selectors.weekendStudents().length;
@@ -1042,10 +1179,18 @@ const Print = {
             return `<div class="brandBox"><div style="font-weight:800">${e.loc.label} — ${e.names.length}</div><div>${e.names.join(", ")}</div></div>`;
           }).join("")}
         </div>
-      `;
+  
+    // Mode filtering for one-tap print
+    if(mode!=="all"){
+      if(mode!=="duties") { dutiesPrint = ""; rengPrint = rengPrint || ""; }
+      if(mode==="duties"){ brandPrint=""; sundayPrint=""; }
+      if(mode==="brand"){ dutiesPrint=""; rengPrint=""; sundayPrint=""; /* brandPrint kept */ }
+      if(mode==="sunday"){ dutiesPrint=""; rengPrint=""; brandPrint=""; /* sundayPrint kept */ }
+    }
+    `;
     };
 
-    const brandPrint = buildBrandBlocks("fri") + buildBrandBlocks("sat") + buildBrandBlocks("sun");
+    brandPrint = buildBrandBlocks("fri") + buildBrandBlocks("sat") + buildBrandBlocks("sun");
     area.innerHTML = `
       <div class="printCard">
         <div class="printTitle">Weekend-overblik</div>
@@ -1092,8 +1237,10 @@ const Print = {
 };
 
 // boot
-document.getElementById("fileInput").addEventListener("change", (e)=>Importer.handleFile(e.target.files?.[0]));
 window.App = App; window.UI = UI; window.Demo = Demo; window.Duties = Duties; window.Reng = Reng; window.Print = Print;
 
 App.load();
 UI.show("weekend");
+
+
+document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ try{UI.closeHelp()}catch{} } });
