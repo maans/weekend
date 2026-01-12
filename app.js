@@ -763,9 +763,9 @@ const UI = {
 
     const day = App.state._brandDay || "fri";
     const dayLabel = day==="fri" ? "Fredag" : (day==="sat" ? "Lørdag" : "Søndag");
-
     const weekend = Selectors.weekendStudents().slice().sort((a,b)=> Util.cmpName(a,b));
 
+    // Group by actual sleep place for selected day
     const groups = new Map();
     for(const s of weekend){
       const loc = Util.sleepLabel(s, day);
@@ -790,47 +790,56 @@ const UI = {
     el.innerHTML = `
       <div class="card">
         <div style="font-weight:800;margin-bottom:6px;">Brandliste</div>
-        <div class="small">Vælg dag, og flyt elever til andet værelse på samme gang eller fællessovning. Standard er eget værelse.</div>
-        <div class="row" style="margin-top:8px;">
+        <div class="small">Vælg dag og redigér sovested. Standard er elevens eget hus/værelse.</div>
+        <div class="row" style="margin-top:10px;">
           <select onchange="App.state._brandDay=this.value;App.save(false);UI.renderBrand()">
             <option value="fri" ${day==="fri"?"selected":""}>Fredag</option>
             <option value="sat" ${day==="sat"?"selected":""}>Lørdag</option>
             <option value="sun" ${day==="sun"?"selected":""}>Søndag</option>
           </select>
-          <button class="btn" onclick="UI.clearSleepDay('${day}')">Nulstil dag</button>
+          <button class="btn danger" onclick="UI.clearSleepDay('${day}');UI.renderBrand()">Nulstil dag</button>
         </div>
-        <div class="badge" style="margin-top:8px;">Viser sovesteder for: ${dayLabel}</div>
+        <div class="badge" style="margin-top:8px;">Sovesteder for: ${dayLabel}</div>
       </div>
     `;
 
+    // Simple overview (brandmand-venlig)
     for(const g of entries){
       const names = g.students.slice().sort((a,b)=>Util.cmpName(a,b)).map(s=>s.name).join(", ");
       el.innerHTML += `
         <div class="card">
           <div style="font-weight:800">${g.loc.label} <span class="badge">${g.students.length}</span></div>
-          <div class="small">${names}</div>
+          <div class="small">${names || "—"}</div>
         </div>
       `;
     }
 
-    el.innerHTML += `<div class="card"><div style="font-weight:800;margin-bottom:6px;">Redigér sovested (${dayLabel})</div>
-      <div class="small">“Eget værelse” bruger elevens hus/værelse. “Andet værelse” er på samme gang. “Andet” er fri tekst.</div></div>`;
+    // Editor section
+    el.innerHTML += `
+      <div class="card">
+        <div style="font-weight:800;margin-bottom:6px;">Redigér sovested (${dayLabel})</div>
+        <div class="small">Vælg “Andet værelse” (på samme gang), “Fællessovning” eller fri tekst. Ændringer slår igennem i overblikket og på print.</div>
+      </div>
+    `;
 
     const common = Defaults.commonSleepPlaces();
     for(const s of weekend){
       const f = Selectors.flags(s.id);
       const cur = Util.sleepLabel(s, day).label;
 
-      const currentType = ((f.sleep||{})[day]?.type) || "own";
-      const currentRoom = ((f.sleep||{})[day]?.room) || "";
-      const currentCommon = ((f.sleep||{})[day]?.name) || common[0];
-      const currentManual = ((f.sleep||{})[day]?.text) || "";
+      const st = (f.sleep||{})[day] || null;
+      const currentType = st?.type || "own";
+      const currentRoom = st?.room || "";
+      const currentCommon = st?.name || common[0];
+      const currentManual = st?.text || "";
+
+      const safe = (x)=> String(x??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 
       el.innerHTML += `
         <div class="student">
           <div style="flex:1;min-width:180px">
-            <div><b>${s.firstName || s.name}</b> ${s.lastName?`<span class="small">${s.lastName}</span>`:""}</div>
-            <div class="meta">${s.house} · ${s.room} <span class="badge">nu: ${cur}</span></div>
+            <div><b>${safe(s.name)}</b></div>
+            <div class="meta">${safe(s.house)} · ${safe(s.room)} <span class="badge">nu: ${safe(cur)}</span></div>
           </div>
           <div style="flex:1;min-width:160px">
             <select onchange="UI.setSleepType('${s.id}','${day}', this.value);UI.renderBrand()">
@@ -842,20 +851,20 @@ const UI = {
 
             ${currentType==="room" ? `
               <div style="margin-top:6px">
-                <input type="text" placeholder="Værelse" value="${String(currentRoom).replaceAll('"','&quot;')}"
+                <input type="text" placeholder="Værelse" value="${safe(currentRoom)}"
                   oninput="UI.setSleepRoom('${s.id}','${day}', this.value)">
               </div>` : ""}
 
             ${currentType==="common" ? `
               <div style="margin-top:6px">
                 <select onchange="UI.setSleepCommon('${s.id}','${day}', this.value)">
-                  ${common.map(x=>`<option value="${x}" ${x===currentCommon?"selected":""}>${x}</option>`).join("")}
+                  ${common.map(x=>`<option value="${safe(x)}" ${x===currentCommon?"selected":""}>${safe(x)}</option>`).join("")}
                 </select>
               </div>` : ""}
 
             ${currentType==="manual" ? `
               <div style="margin-top:6px">
-                <input type="text" placeholder="Sovested (fri tekst)" value="${String(currentManual).replaceAll('"','&quot;')}"
+                <input type="text" placeholder="Sovested (fri tekst)" value="${safe(currentManual)}"
                   oninput="UI.setSleepManual('${s.id}','${day}', this.value)">
               </div>` : ""}
           </div>
