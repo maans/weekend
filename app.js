@@ -15,9 +15,10 @@ const App = {
     },
     reng: {
       sameForSatSun: true,
-      settings: { excludeKitchen: true },
+      settings: { excludeKitchen: true, minLeftPerHouse: 2 },
       needs: {},
-      assignments: {} // area -> [ids]
+      assignments: {}, // area -> [ids]
+      hallway: {}      // house -> [ids] (egen gang)
     },
     lastImport: null
   },
@@ -242,6 +243,7 @@ const Importer = {
     // clear generated plans (safe)
     App.state.duties.assignments = {};
     App.state.reng.assignments = {};
+    App.state.reng.hallway = {};
     App.save();
     UI.show("weekend");
   }
@@ -285,6 +287,7 @@ const Demo = {
     App.ensureHouseOrder();
     App.state.duties.assignments = {};
     App.state.reng.assignments = {};
+    App.state.reng.hallway = {};
     App.save();
     UI.show("weekend");
   }
@@ -352,34 +355,82 @@ const Duties = {
 const Reng = {
   generate(){
     const needs = App.state.reng.needs || {};
+    const minLeft = Number(App.state.reng.settings?.minLeftPerHouse ?? 2);
+
+    // Eligible = weekend-present AND not kitchen
     const eligible = Selectors.eligibleForWork().slice();
 
-    // simple fairness: shuffle, then assign sequentially
-    eligible.sort((a,b)=> Util.cmpName(a,b));
-    for(let i=eligible.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+    // Build per-house pools
+    const byHouse = new Map();
+    for(const s of eligible){
+      const h = s.house || "(ukendt)";
+      if(!byHouse.has(h)) byHouse.set(h, []);
+      byHouse.get(h).push(s);
     }
 
-    const assignments = {};
-    const used = new Set();
+    // Stable shuffle within each house (fairness)
+    for(const [h, arr] of byHouse.entries()){
+      arr.sort((a,b)=> Util.cmpName(a,b));
+      for(let i=arr.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
 
-    // fill areas in stable order (biggest needs first)
+    // Areas sorted by need desc
     const areas = Object.keys(needs).map(name => ({name, n:Number(needs[name]||0)}))
       .filter(a => a.n > 0)
       .sort((a,b)=> b.n - a.n || a.name.localeCompare(b.name,"da"));
 
+    const assignments = {};
+    const used = new Set();
+
+    // Helper: pick next student from any house that can spare one (keeping minLeft)
+    const pickNext = () => {
+      const candidates = [];
+      for(const [h, arr] of byHouse.entries()){
+        const remaining = arr.filter(s => !used.has(s.id)).length;
+        if(remaining > minLeft){
+          candidates.push(h);
+        }
+      }
+      if(!candidates.length) return null;
+
+      // Prefer houses with most remaining
+      candidates.sort((ha,hb)=>{
+        const ra = byHouse.get(ha).filter(s=>!used.has(s.id)).length;
+        const rb = byHouse.get(hb).filter(s=>!used.has(s.id)).length;
+        return rb-ra || ha.localeCompare(hb,"da");
+      });
+
+      for(const h of candidates){
+        const arr = byHouse.get(h);
+        const next = arr.find(s => !used.has(s.id));
+        if(next) return next;
+      }
+      return null;
+    };
+
+    // Fill common areas with constraint
     for(const area of areas){
       assignments[area.name] = [];
       for(let i=0;i<area.n;i++){
-        const next = eligible.find(s => !used.has(s.id));
+        const next = pickNext();
         if(!next) break;
         used.add(next.id);
         assignments[area.name].push(next.id);
       }
     }
 
+    // Remaining eligible students become "egen gang" per house
+    const hallway = {};
+    for(const [h, arr] of byHouse.entries()){
+      const remaining = arr.filter(s => !used.has(s.id));
+      hallway[h] = remaining.map(s=>s.id);
+    }
+
     App.state.reng.assignments = assignments;
+    App.state.reng.hallway = hallway;
     App.save();
   }
 };
@@ -611,11 +662,26 @@ const UI = {
           <span class="pill">Køkken (udelukket): ${kitchen}</span>
           <span class="pill">Til RENG: ${eligible}</span>
         </div>
+
+        <div class="hr"></div>
+
+        <div class="row">
+          <div style="flex:1">
+            <div class="small">Min. tilbage pr gang</div>
+            <input type="number" min="0" max="10" value="${App.state.reng.settings.minLeftPerHouse ?? 2}"
+              onchange="App.state.reng.settings.minLeftPerHouse=Number(this.value||2);App.save(false)">
+          </div>
+          <div style="flex:1">
+            <div class="small">Plan</div>
+            <div class="badge">Samme for lør + søn</div>
+          </div>
+        </div>
+
         <div class="row" style="margin-top:10px;">
           <button class="btn" onclick="Reng.generate();UI.renderReng()">Generér rengøring</button>
-          <button class="btn danger" onclick="App.state.reng.assignments={};App.save();UI.renderReng()">Ryd</button>
+          <button class="btn danger" onclick="App.state.reng.assignments={};App.state.reng.hallway={};App.save();UI.renderReng()">Ryd</button>
         </div>
-        <div class="small" style="margin-top:6px;">Du kan justere behov pr område nedenfor.</div>
+        <div class="small" style="margin-top:6px;">Auto-fordeling bemander fællesområder først og efterlader mindst <b>${App.state.reng.settings.minLeftPerHouse ?? 2}</b> elever pr. gang til “egen gang”.</div>
       </div>
     `;
 
@@ -650,6 +716,20 @@ const UI = {
         </div>
       `;
     }
+    // "Egen gang" overview (remaining students per house)
+    const H = App.state.reng.hallway || {};
+    el.innerHTML += `<div class="card"><div style="font-weight:800;margin-bottom:8px;">Egen gang (rester pr. gang)</div>
+      <div class="small">Disse elever er tilbage på deres egne gange, efter at fællesområderne er bemandet.</div></div>`;
+    const houses = (App.state.houseOrder||[]).slice();
+    Object.keys(H).forEach(h=>{ if(!houses.includes(h)) houses.push(h); });
+    for(const h of houses){
+      const ids = H[h] || [];
+      if(!ids.length) continue;
+      const names = ids.map(id=>Util.byId(id)?.name).filter(Boolean).join(", ");
+      el.innerHTML += `<div class="card"><div style="font-weight:800">${h} <span class="badge">${ids.length}</span></div>
+        <div class="small">${names}</div></div>`;
+    }
+
   },
 
   renderBrand(){
@@ -774,6 +854,17 @@ const Print = {
       return `<tr><td>${name}</td><td>${names}</td></tr>`;
     }).join("");
 
+
+    // Egen gang (rester pr gang)
+    const H = App.state.reng.hallway || {};
+    const housesForPrint = (App.state.houseOrder||[]).slice();
+    Object.keys(H).forEach(h=>{ if(!housesForPrint.includes(h)) housesForPrint.push(h); });
+    const hallwayRows = housesForPrint.map(h=>{
+      const ids = H[h] || [];
+      if(!ids.length) return "";
+      const names = ids.map(id=>Util.byId(id)?.name).filter(Boolean).join(", ") || "—";
+      return `<tr><td>${h}</td><td>${names}</td></tr>`;
+    }).join("");
     // Sunday list (simple table; 3-column print styling can be added later)
     const all = App.state.students.slice().sort((a,b)=>Util.cmpName(a,b));
     const sundayRows = all.map(s=>{
@@ -818,6 +909,12 @@ const Print = {
         <table>
           <thead><tr><th>Område</th><th>Elever</th></tr></thead>
           <tbody>${rengRows}</tbody>
+        </table>
+        <div style="height:6mm"></div>
+        <div style="font-weight:800;margin:0 0 3mm 0;">Egen gang (rester pr. gang)</div>
+        <table>
+          <thead><tr><th>Gang</th><th>Elever</th></tr></thead>
+          <tbody>${hallwayRows || "<tr><td colspan=\"2\">—</td></tr>"}</tbody>
         </table>
       </div>
 
