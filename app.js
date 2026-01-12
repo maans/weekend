@@ -99,6 +99,24 @@ const Util = {
   },
   byId(id){
     return App.state.students.find(s=>s.id===id);
+  },
+
+  sleepLabel(student, day){
+    const f = Selectors.flags(student.id);
+    const s = (f.sleep||{})[day] || null;
+    if(!s || s.type==='own'){
+      return { kind:'room', house: student.house||"(ukendt)", room: student.room||"" , label: `${student.house} · ${student.room}` };
+    }
+    if(s.type==='room'){
+      return { kind:'room', house: student.house||"(ukendt)", room: s.room||"", label: `${student.house} · ${s.room||""}` };
+    }
+    if(s.type==='common'){
+      return { kind:'common', label: s.name || "Fællessovning" };
+    }
+    if(s.type==='manual'){
+      return { kind:'manual', label: s.text || "Andet" };
+    }
+    return { kind:'manual', label: "Andet" };
   }
 };
 
@@ -122,6 +140,10 @@ const Defaults = {
       "Hallen": 2
     };
   },
+  commonSleepPlaces(){
+    return ["Teltet","Shelteret","Gymnastiksalen","Medie","Biografen"];
+  },
+
   dutySlots(){
     const mk=(id,label)=>({id,label});
     return [
@@ -738,40 +760,146 @@ const UI = {
       el.innerHTML = UI.emptyState();
       return;
     }
-    // v2: use current room as sleep; overrides pr day can be added later
+
+    const day = App.state._brandDay || "fri";
+    const dayLabel = day==="fri" ? "Fredag" : (day==="sat" ? "Lørdag" : "Søndag");
+
+    const weekend = Selectors.weekendStudents().slice().sort((a,b)=> Util.cmpName(a,b));
+
     const groups = new Map();
-    for(const s of Selectors.weekendStudents()){
-      const key = `${s.house} · ${s.room}`;
-      if(!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(s);
+    for(const s of weekend){
+      const loc = Util.sleepLabel(s, day);
+      const key = loc.label;
+      if(!groups.has(key)) groups.set(key, {loc, students: []});
+      groups.get(key).students.push(s);
     }
-    const entries = [...groups.entries()].sort((a,b)=>{
-      // sort by house order then room numeric
-      const [ka] = a, [kb] = b;
-      const [ha, ra] = ka.split(" · ");
-      const [hb, rb] = kb.split(" · ");
-      const ia = (App.state.houseOrder||[]).indexOf(ha);
-      const ib = (App.state.houseOrder||[]).indexOf(hb);
-      if(ia!==ib) return (ia<0?999:ia)-(ib<0?999:ib);
-      return Util.cmpRoom(ra, rb);
+
+    const houseIndex = new Map((App.state.houseOrder||[]).map((h,i)=>[h,i]));
+    const entries = [...groups.values()].sort((A,B)=>{
+      const a=A.loc, b=B.loc;
+      if(a.kind==='room' && b.kind==='room'){
+        const ia = houseIndex.get(a.house) ?? 999;
+        const ib = houseIndex.get(b.house) ?? 999;
+        return ia-ib || Util.cmpRoom(a.room,b.room);
+      }
+      if(a.kind==='room') return -1;
+      if(b.kind==='room') return 1;
+      return a.label.localeCompare(b.label,"da");
     });
 
     el.innerHTML = `
       <div class="card">
-        <div style="font-weight:800;margin-bottom:6px;">Brandliste (enkelt)</div>
-        <div class="small">V1: bruger elevens hus/værelse som sovested. (Fællessovning/override pr dag kommer i næste trin.)</div>
+        <div style="font-weight:800;margin-bottom:6px;">Brandliste</div>
+        <div class="small">Vælg dag, og flyt elever til andet værelse på samme gang eller fællessovning. Standard er eget værelse.</div>
+        <div class="row" style="margin-top:8px;">
+          <select onchange="App.state._brandDay=this.value;App.save(false);UI.renderBrand()">
+            <option value="fri" ${day==="fri"?"selected":""}>Fredag</option>
+            <option value="sat" ${day==="sat"?"selected":""}>Lørdag</option>
+            <option value="sun" ${day==="sun"?"selected":""}>Søndag</option>
+          </select>
+          <button class="btn" onclick="UI.clearSleepDay('${day}')">Nulstil dag</button>
+        </div>
+        <div class="badge" style="margin-top:8px;">Viser sovesteder for: ${dayLabel}</div>
       </div>
     `;
 
-    for(const [k, arr] of entries){
-      const names = arr.sort((a,b)=>Util.cmpName(a,b)).map(s=>s.name).join(", ");
+    for(const g of entries){
+      const names = g.students.slice().sort((a,b)=>Util.cmpName(a,b)).map(s=>s.name).join(", ");
       el.innerHTML += `
         <div class="card">
-          <div style="font-weight:800">${k} <span class="badge">${arr.length}</span></div>
+          <div style="font-weight:800">${g.loc.label} <span class="badge">${g.students.length}</span></div>
           <div class="small">${names}</div>
         </div>
       `;
     }
+
+    el.innerHTML += `<div class="card"><div style="font-weight:800;margin-bottom:6px;">Redigér sovested (${dayLabel})</div>
+      <div class="small">“Eget værelse” bruger elevens hus/værelse. “Andet værelse” er på samme gang. “Andet” er fri tekst.</div></div>`;
+
+    const common = Defaults.commonSleepPlaces();
+    for(const s of weekend){
+      const f = Selectors.flags(s.id);
+      const cur = Util.sleepLabel(s, day).label;
+
+      const currentType = ((f.sleep||{})[day]?.type) || "own";
+      const currentRoom = ((f.sleep||{})[day]?.room) || "";
+      const currentCommon = ((f.sleep||{})[day]?.name) || common[0];
+      const currentManual = ((f.sleep||{})[day]?.text) || "";
+
+      el.innerHTML += `
+        <div class="student">
+          <div style="flex:1;min-width:180px">
+            <div><b>${s.firstName || s.name}</b> ${s.lastName?`<span class="small">${s.lastName}</span>`:""}</div>
+            <div class="meta">${s.house} · ${s.room} <span class="badge">nu: ${cur}</span></div>
+          </div>
+          <div style="flex:1;min-width:160px">
+            <select onchange="UI.setSleepType('${s.id}','${day}', this.value);UI.renderBrand()">
+              <option value="own" ${currentType==="own"?"selected":""}>Eget værelse</option>
+              <option value="room" ${currentType==="room"?"selected":""}>Andet værelse</option>
+              <option value="common" ${currentType==="common"?"selected":""}>Fællessovning</option>
+              <option value="manual" ${currentType==="manual"?"selected":""}>Andet (tekst)</option>
+            </select>
+
+            ${currentType==="room" ? `
+              <div style="margin-top:6px">
+                <input type="text" placeholder="Værelse" value="${String(currentRoom).replaceAll('"','&quot;')}"
+                  oninput="UI.setSleepRoom('${s.id}','${day}', this.value)">
+              </div>` : ""}
+
+            ${currentType==="common" ? `
+              <div style="margin-top:6px">
+                <select onchange="UI.setSleepCommon('${s.id}','${day}', this.value)">
+                  ${common.map(x=>`<option value="${x}" ${x===currentCommon?"selected":""}>${x}</option>`).join("")}
+                </select>
+              </div>` : ""}
+
+            ${currentType==="manual" ? `
+              <div style="margin-top:6px">
+                <input type="text" placeholder="Sovested (fri tekst)" value="${String(currentManual).replaceAll('"','&quot;')}"
+                  oninput="UI.setSleepManual('${s.id}','${day}', this.value)">
+              </div>` : ""}
+          </div>
+        </div>
+      `;
+    }
+  },
+
+  clearSleepDay(day){
+    for(const s of Selectors.weekendStudents()){
+      const f = Selectors.flags(s.id);
+      f.sleep = f.sleep || {fri:null,sat:null,sun:null};
+      f.sleep[day] = null;
+    }
+    App.save();
+    UI.renderBrand();
+  },
+
+  setSleepType(id, day, type){
+    const f = Selectors.flags(id);
+    f.sleep = f.sleep || {fri:null,sat:null,sun:null};
+    if(type==="own"){ f.sleep[day] = null; }
+    else if(type==="room"){ f.sleep[day] = {type:"room", room:""}; }
+    else if(type==="common"){ f.sleep[day] = {type:"common", name: Defaults.commonSleepPlaces()[0]}; }
+    else if(type==="manual"){ f.sleep[day] = {type:"manual", text:""}; }
+    App.save(false);
+  },
+  setSleepRoom(id, day, room){
+    const f = Selectors.flags(id);
+    f.sleep = f.sleep || {fri:null,sat:null,sun:null};
+    f.sleep[day] = {type:"room", room: String(room||"").trim()};
+    App.save(false);
+  },
+  setSleepCommon(id, day, name){
+    const f = Selectors.flags(id);
+    f.sleep = f.sleep || {fri:null,sat:null,sun:null};
+    f.sleep[day] = {type:"common", name};
+    App.save(false);
+  },
+  setSleepManual(id, day, text){
+    const f = Selectors.flags(id);
+    f.sleep = f.sleep || {fri:null,sat:null,sun:null};
+    f.sleep[day] = {type:"manual", text: String(text||"").trim()};
+    App.save(false);
   },
 
   renderHelp(){
@@ -873,18 +1001,42 @@ const Print = {
       return `<tr><td style="width:2em">${chk}</td><td>${s.name}</td><td>${f.isPresent?'på skolen':(f.sundayDinnerOnly?'søn aften':'')}</td></tr>`;
     }).join("");
 
-    // Brand: grouped by house-room
-    const groups = new Map();
-    for(const s of w){
-      const key = `${s.house} · ${s.room}`;
-      if(!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(s.name);
-    }
-    const brandBlocks = [...groups.entries()].map(([k, names])=>{
-      const count = names.length;
-      return `<div class="brandBox"><div style="font-weight:800">${k} — ${count}</div><div>${names.join(", ")}</div></div>`;
-    }).join("");
+    // Brand: grouped by actual sovested (fre/lør/søn)
+    const buildBrandBlocks = (day) => {
+      const dayLabel = day==="fri" ? "Fredag" : (day==="sat" ? "Lørdag" : "Søndag");
+      const groups = new Map();
+      for(const s of w){
+        const loc = Util.sleepLabel(s, day);
+        const key = loc.label;
+        if(!groups.has(key)) groups.set(key, {loc, names: []});
+        groups.get(key).names.push(s.name);
+      }
+      const houseIndex = new Map((App.state.houseOrder||[]).map((h,i)=>[h,i]));
+      const entries = [...groups.values()].sort((A,B)=>{
+        const a=A.loc, b=B.loc;
+        if(a.kind==='room' && b.kind==='room'){
+          const ia = houseIndex.get(a.house) ?? 999;
+          const ib = houseIndex.get(b.house) ?? 999;
+          return ia-ib || Util.cmpRoom(a.room,b.room);
+        }
+        if(a.kind==='room') return -1;
+        if(b.kind==='room') return 1;
+        return a.label.localeCompare(b.label,"da");
+      });
 
+      return `
+        <div class="printCard" style="page-break-before:always">
+          <div class="printTitle">Brand — ${dayLabel}</div>
+          <div class="printSub">Sovesteder for ${dayLabel}. Optælling pr. sted.</div>
+          ${entries.map(e=>{
+            e.names.sort((a,b)=>a.localeCompare(b,"da"));
+            return `<div class="brandBox"><div style="font-weight:800">${e.loc.label} — ${e.names.length}</div><div>${e.names.join(", ")}</div></div>`;
+          }).join("")}
+        </div>
+      `;
+    };
+
+    const brandPrint = buildBrandBlocks("fri") + buildBrandBlocks("sat") + buildBrandBlocks("sun");
     area.innerHTML = `
       <div class="printCard">
         <div class="printTitle">Weekend-overblik</div>
@@ -925,12 +1077,7 @@ const Print = {
           <tbody>${sundayRows}</tbody>
         </table>
       </div>
-
-      <div class="printCard" style="page-break-before:always">
-        <div class="printTitle">Brand</div>
-        <div class="printSub">Sovesteder (v1 = hus/værelse). Optælling pr. sted.</div>
-        ${brandBlocks}
-      </div>
+      ${brandPrint}
     `;
   }
 };
