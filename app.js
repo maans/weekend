@@ -1061,9 +1061,27 @@ updateStatus(){
   },
 
   
+  
   openHelp(){
     const m = document.getElementById("helpModal");
-    m.innerHTML = "\n      <div class=\"dialog\">\n        <div class=\"closeRow\">\n          <h2 style=\"color:#ffc107\">Vejledning</h2>\n          <button class=\"btn\" onclick=\"UI.closeHelp()\">Luk</button>\n        </div>\n        <div class=\"small\">\n          <p><b>Import:</b> Hent din elevliste som Excel (eller CSV) i administrationssystemet og indl\u00e6s den under <b>Data</b>.</p>\n          <p><b>Elever:</b> Brug <b>K\u00f8kken</b> til at fritage elever fra automatisk fordeling. <b>Hjem l\u00f8r</b> g\u00f8r det mere sandsynligt at f\u00e5 en fredagstjans.</p>\n          <p><b>Runder:</b> Fold et omr\u00e5de ud for at se elever pr. v\u00e6relse. Brug <b>Brand</b> til at flytte sovested pr. dag.</p>\n          <p><b>Fordeling:</b> I Tjanser/RENG kan du fordele automatisk. Brug l\u00e5sen til at \u201cl\u00e5se\u201d en plads/et omr\u00e5de.</p>\n          <p><b>Print:</b> Print-fanen giver 1-tryk print. S\u00f8ndagslisten er 3 kolonner, og brandlister viser sovesteder med opt\u00e6lling.</p>\n        </div>\n        <div style=\"margin-top:14px;\">\n          <button class=\"btn\" style=\"width:100%;border-radius:18px;padding:14px 12px;font-weight:900\" onclick=\"UI.closeHelp()\">Luk vejledning</button>\n        </div>\n      </div>\n";
+    m.innerHTML = `
+      <div class="dialog">
+        <div class="closeRow">
+          <h2 style="color:#ffc107">Vejledning</h2>
+          <button class="btn" onclick="UI.closeHelp()">Luk</button>
+        </div>
+        <div class="small">
+          <p><b>Import:</b> Hent din elevliste som Excel (eller CSV) i administrationssystemet og indlæs den under <b>Data</b>.</p>
+          <p><b>Elever:</b> Brug <b>Køkken</b> til at fritage elever fra automatisk fordeling. <b>Hjem lør</b> gør det mere sandsynligt at få en fredagstjans.</p>
+          <p><b>Runder:</b> Fold et område ud for at se elever pr. værelse. Brug <b>Brand</b> til at flytte sovested pr. dag.</p>
+          <p><b>Fordeling:</b> I Tjanser/RENG kan du fordele automatisk. Brug låsen til at “låse” en plads/et område.</p>
+          <p><b>Print:</b> Print-fanen giver 1-tryk print. Søndagslisten er 3 kolonner, og brandlister viser sovesteder med optælling.</p>
+        </div>
+        <div style="margin-top:14px;">
+          <button class="btn" style="width:100%;border-radius:18px;padding:14px 12px;font-weight:900" onclick="UI.closeHelp()">Luk vejledning</button>
+        </div>
+      </div>
+    `;
     m.classList.remove("hidden");
     m.onclick = (e)=>{ if(e.target===m) UI.closeHelp(); };
   },
@@ -1072,15 +1090,15 @@ updateStatus(){
     m.classList.add("hidden");
     m.innerHTML = "";
   },
-
-emptyState(){
+  emptyState(){
     return `
       <div class="card">
         <div style="font-weight:800;margin-bottom:6px;">Ingen data endnu</div>
-        <div class="small">Tryk <b>Indlæs demo</b> eller importér Excel/CSV nederst.</div>
+        <div class="small">Tryk <b>Indlæs demo</b> eller importér Excel/CSV under <b>Data</b>.</div>
       </div>
     `;
   }
+
 };
 
 const Print = {
