@@ -204,6 +204,7 @@ const Importer = {
     const buf = await file.arrayBuffer();
     Importer.fromXLSX(buf, file.name);
   },
+  loadFile(file){ return Importer.handleFile(file); },
 
   fromXLSX(buf, filename){
     const wb = XLSX.read(buf, {type:"array"});
@@ -555,7 +556,7 @@ const UI = {
         <div class="card">
           <div class="row" style="justify-content:space-between;align-items:center;">
             <div style="font-weight:900">${h} <span class="badge">${arr.length}</span></div>
-            <button class="btn" onclick="App.state._openHouse=${json.dumps(h)};App.save(false);UI.renderRunder()">${open?'Skjul':'Vis'}</button>
+            <button class="btn" onclick="App.state._openHouse=(App.state._openHouse===${JSON.stringify(h)}?null:${JSON.stringify(h)});App.save(false);UI.renderRunder()">${open?'Skjul':'Vis'}</button>
           </div>
           ${open ? `<div style="margin-top:10px;">
             ${arr.map(s=>`<div class="student" style="margin:8px 0;">
@@ -983,7 +984,7 @@ updateStatus(){
       const safe = (x)=> String(x??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 
       el.innerHTML += `
-        <div class="student ${finished?'finished':''}">
+        <div class="student">
           <div style="flex:1;min-width:180px">
             <div><b>${safe(s.name)}</b></div>
             <div class="meta">${safe(s.house)} · ${safe(s.room)} <span class="badge">nu: ${safe(cur)}</span></div>
