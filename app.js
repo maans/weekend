@@ -1058,10 +1058,6 @@ updateStatus(){
     App.save(false);
   },
 
-  },
-
-  
-  
   openHelp(){
     const m = document.getElementById("helpModal");
     m.innerHTML = `
