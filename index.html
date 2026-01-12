@@ -1,47 +1,38 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="da">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WeekendLister</title>
+<link rel="stylesheet" href="style.css">
+<script src="xlsx.full.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>WEEKEND</h1>
+  <nav>
+    <button onclick="UI.show('weekend')">Weekendvagt</button>
+    <button onclick="UI.show('sunday')">Søndag</button>
+    <button onclick="UI.show('duties')">Tjanser</button>
+    <button onclick="UI.show('brand')">Brand</button>
+    <button onclick="UI.show('help')">Hjælp</button>
+  </nav>
+</header>
 
-    <base href="./">
+<main>
+<section id="weekend" class="view"></section>
+<section id="sunday" class="view"></section>
+<section id="duties" class="view"></section>
+<section id="brand" class="view"></section>
+<section id="help" class="view"></section>
+</main>
 
-    <title>Weekend</title>
+<footer>
+  <input type="file" id="fileInput">
+  <button onclick="Demo.load()">Indlæs demo</button>
+  <button onclick="App.reset()">Nulstil</button>
+</footer>
 
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <style>
-        @media print {
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            body { background: white !important; color: black !important; padding: 0; margin: 0; }
-            .page-break { page-break-after: always; height: 0; border: 0; }
-            h1, h2, h3, h4, p, span, td, th, li { color: black !important; }
-            @page {
-                margin: 1cm;
-                size: A4;
-            }
-            .a4-page {
-                width: 210mm;
-                min-height: 297mm;
-                padding: 10mm;
-                margin: 0 auto;
-                background: white;
-            }
-            .columns-2 {
-                column-count: 2;
-                column-gap: 20px;
-            }
-        }
-
-        .print-only { display: none; }
-        body {
-            background-color: #0A0E1A;
-            overflow-x: hidden;
-            color: white;
-            font-family: sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        .wise-card { transition: transform 0.2s cubic-bezier(0.175, 0.
+<script src="app.js"></script>
+</body>
+</html>

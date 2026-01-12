@@ -1,0 +1,8 @@
+body{margin:0;font-family:system-ui;background:#0b0e14;color:#fff}
+header{padding:10px;background:#111827;position:sticky;top:0}
+nav button{margin:2px;padding:8px;border-radius:8px;border:none}
+.view{display:none;padding:10px}
+.view.active{display:block}
+.student{display:flex;justify-content:space-between;align-items:center;
+padding:10px;border-radius:20px;margin:6px 0;background:#374151}
+footer{position:fixed;bottom:0;width:100%;padding:6px;background:#111827;display:flex;gap:6px}
