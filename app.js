@@ -208,6 +208,31 @@ const Importer = {
   },
   loadFile(file){ return Importer.handleFile(file); },
 
+  async ensureXLSX(){
+    if(window.XLSX) return;
+    // Lazy-load SheetJS from CDN when needed (Excel import).
+    const urls = [
+      "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+      "https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"
+    ];
+    let lastErr = null;
+    for(const src of urls){
+      try{
+        await new Promise((resolve, reject)=>{
+          const s = document.createElement("script");
+          s.src = src;
+          s.async = true;
+          s.onload = ()=>resolve();
+          s.onerror = ()=>reject(new Error("Kunne ikke loade: "+src));
+          document.head.appendChild(s);
+        });
+        if(window.XLSX) return;
+      }catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error("XLSX kunne ikke indlæses.");
+  },
+
+
   fromXLSX(buf, filename){
     const wb = XLSX.read(buf, {type:"array"});
     const ws = wb.Sheets[wb.SheetNames[0]];
@@ -1090,7 +1115,7 @@ const Print = {
       alert("Indlæs demo eller importér data først.");
       return;
     }
-    Print.build();
+    Print.build(opts);
     window.print();
   },
   build(opts={}){

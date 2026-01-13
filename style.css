@@ -95,7 +95,7 @@ input[type="text"], input[type="number"], select, textarea{
   body{background:#fff;color:#000}
   .topbar,.tabs,.bottombar{display:none!important}
   .main{padding:0}
-  .printArea{display:block!important}
+  .printArea{display:none}
   .printCard{page-break-inside:avoid;margin:0 0 10mm 0}
   .printTitle{font-size:18pt;font-weight:800;text-align:center;margin:0 0 6mm 0}
   .printSub{font-size:11pt;text-align:center;margin:0 0 6mm 0;color:#111}
