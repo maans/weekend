@@ -201,6 +201,8 @@ const Importer = {
       Importer.fromCSV(text, file.name);
       return;
     }
+    // Excel: ensure SheetJS is available (CDN can be cached/blocked)
+    await Importer.ensureXLSX();
     const buf = await file.arrayBuffer();
     Importer.fromXLSX(buf, file.name);
   },
@@ -243,10 +245,13 @@ const Importer = {
       students.push({ id, name:nm.full, firstName:nm.first, lastName:nm.last, house, room });
 
       // Weekend status from ViGGO style
-      const ans = Util.norm(r["Hvor er du i weekenden? (6087)"] || r["Hvor er du i weekenden?"] || r.Weekend || r.weekend || "");
-      const isHU = ans.toLowerCase().includes("hu");
-      const leavesSat = ans.toLowerCase().includes("lørdag");
-      const sundayDinnerOnly = ans.toLowerCase().includes("søndag") && !isHU;
+      const wkKey = Object.keys(r||{}).find(k => String(k).toLowerCase().includes("hvor er du i weekenden"));
+      const ansRaw = (wkKey && r[wkKey]) || r["Hvor er du i weekenden? (6087)"] || r["Hvor er du i weekenden?"] || r.Weekend || r.weekend || "";
+      const ans = Util.norm(ansRaw);
+      const low = ans.toLowerCase();
+      const isHU = low.includes("hu");
+      const leavesSat = low.includes("lørdag");
+      const sundayDinnerOnly = low.includes("søndag") && !isHU;
 
       flags[id] = {
         isPresent: isHU,
