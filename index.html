@@ -1,0 +1,74 @@
+
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Weekend</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Weekend">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23FFB300%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22/><polygon points=%2216.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76%22/></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23FFB300%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22/><polygon points=%2216.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76%22/></svg>">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; color: black !important; padding: 0; margin: 0; }
+            h1, h2, h3, h4, p, span, td, th, li { color: black !important; }
+            @page { 
+                margin: 0; 
+                size: A4;
+            }
+            .a4-page {
+                width: 210mm;
+                min-height: 297mm;
+                padding: 15mm;
+                margin: 0;
+                background: white;
+                page-break-after: always;
+                box-sizing: border-box;
+                position: relative;
+                clear: both;
+            }
+        }
+        .print-only { display: none; }
+        body { 
+            background-color: #0A0E1A; 
+            overflow-x: hidden; 
+            color: white; 
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent; 
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; overflow-y: auto; }
+        
+        .sunday-columns {
+            columns: 3;
+            column-gap: 20px;
+            column-rule: 1px solid #f1f5f9;
+        }
+    </style>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "xlsx": "https://esm.sh/xlsx@^0.18.5",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
+  <script type="module" crossorigin src="./assets/index-CRzd2wlc.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>
