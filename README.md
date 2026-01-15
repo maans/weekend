@@ -29,7 +29,7 @@ Appen er bygget med fokus på hastighed, stabilitet og moderne webstandarder:
 
 ### Installation & Udvikling
 
-1. Klon repositoriet:
+1. Klun repositoriet:
    ```bash
    git clone [url-til-dit-repo]
    ```
